@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Port-Clair · Classe</title>
+<link rel="stylesheet" href="classe.css">
+</head>
+<body>
+<main id="app" class="centre" aria-live="polite"></main>
+<script src="commun.js"></script>
+<script>
+const CLE = 'pc-classe';
+let S = null;            // { code, id, token, nom }
+let es = null;           // connexion en direct
+let dernier = null;      // dernier état reçu
+let affiche = null;      // identifiant de ce qui est affiché (évite d'effacer une saisie)
+let stopTemps = null;
+const app = $('#app');
+
+function charge() { try { return JSON.parse(localStorage.getItem(CLE) || 'null'); } catch (e) { return null; } }
+function garde() { try { localStorage.setItem(CLE, JSON.stringify(S)); } catch (e) { /* ignoré */ } }
+function oublie() { try { localStorage.removeItem(CLE); } catch (e) { /* ignoré */ } S = null; }
+const marque = () => '<div class="marque"><span style="font-size:1.8rem">🌊</span><div>Port-Clair<br><small>Mode Classe</small></div></div>';
+
+/* ---------- connexion ---------- */
+function vueConnexion(message) {
+  if (stopTemps) stopTemps();
+  affiche = 'connexion';
+  const url = new URL(location.href);
+  const code0 = url.searchParams.get('c') || (S && S.code) || '';
+  app.innerHTML = marque() +
+    '<div class="carte" style="display:flex;flex-direction:column;gap:14px">' +
+    '<h1 style="font-size:1.5rem">Rejoindre la partie</h1>' +
+    '<div class="champ"><label for="code">Code de la partie (4 chiffres)</label><input id="code" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" value="' + esc(code0) + '"></div>' +
+    '<div class="champ"><label for="nom">Ton prénom</label><input id="nom" maxlength="18" autocomplete="off" autocapitalize="words" spellcheck="false" value="' + esc((S && S.nom) || '') + '"></div>' +
+    '<p class="erreur" id="err">' + esc(message || '') + '</p>' +
+    '<button class="btn gros" id="go">Entrer</button></div>';
+  const go = async () => {
+    const code = $('#code').value.trim(), nom = $('#nom').value.trim();
+    if (!/^\d{4}$/.test(code)) { $('#err').textContent = 'Écris les 4 chiffres du code.'; return; }
+    if (!nom) { $('#err').textContent = 'Écris ton prénom.'; return; }
+    $('#go').disabled = true;
+    const r = await api('/api/rejoindre', { code, nom });
+    if (!r.ok) { $('#err').textContent = r.erreur || 'Impossible de rejoindre.'; $('#go').disabled = false; return; }
+    S = { code, id: r.id, token: r.token, nom: r.nom }; garde(); ouvre();
+  };
+  $('#go').onclick = go;
+  $('#nom').onkeydown = $('#code').onkeydown = e => { if (e.key === 'Enter') go(); };
+}
+function ouvre() {
+  if (es) es.close();
+  es = ouvreFlux('/api/flux?code=' + S.code + '&role=eleve&id=' + S.id + '&token=' + S.token, rends,
+    () => { oublie(); vueConnexion('La partie n\'existe plus ou tu as été retiré. Entre le code à nouveau.'); },
+    () => { oublie(); vueConnexion('Le professeur t\'a retiré de la partie.'); });
+}
+
+/* ---------- affichage selon l'état ---------- */
+function haut(e) {
+  const m = e.moi, eq = m.equipe ? '<span class="puce eq" style="border-color:' + m.equipe.hex + '"><span class="pastille" style="background:' + m.equipe.hex + '"></span>Équipe ' + esc(m.equipe.nom) + '</span>' : '';
+  return '<div class="haut"><div class="moi">' + avatar(m.av) + '<span>' + esc(m.nom) + '</span></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' + eq + '<span class="score">' + m.score + ' pts</span></div></div>';
+}
+function rends(e) {
+  dernier = e;
+  if (e.etat === 'question') {
+    const id = 'q' + e.idx;
+    if (e.moi.repondu) { if (affiche !== id + 'ok') vueAttente(e, id + 'ok'); return; }
+    if (affiche === id) return;       // une saisie est en cours : on ne touche à rien
+    vueQuestion(e, id); return;
+  }
+  if (e.etat === 'reveal') return vueReveal(e);
+  if (e.etat === 'fin') return vueFin(e);
+  vueSalle(e);
+}
+function vueSalle(e) {
+  if (stopTemps) stopTemps();
+  affiche = 'salle';
+  app.innerHTML = marque() + haut(e) +
+    '<div class="carte attente"><div class="coche">⏳</div><h1 style="font-size:1.5rem">Bienvenue, ' + esc(e.moi.nom) + ' !</h1>' +
+    '<p class="doux">Attends : le professeur va lancer la partie.</p>' +
+    '<p class="doux">' + e.nbJoueurs + ' joueur' + (e.nbJoueurs > 1 ? 's' : '') + ' connecté' + (e.nbJoueurs > 1 ? 's' : '') + '</p></div>';
+}
+function vueAttente(e, id) {
+  if (stopTemps) stopTemps();
+  affiche = id;
+  app.innerHTML = haut(e) + '<div class="carte attente"><div class="coche">✅</div><h1 style="font-size:1.5rem">Réponse envoyée</h1><p class="doux">Attends les autres…</p></div>';
+}
+
+function envoie(reponse, zone) {
+  if (zone) zone.querySelectorAll('button,input').forEach(x => { x.disabled = true; });
+  api('/api/rep', { code: S.code, id: S.id, token: S.token, reponse }).then(r => {
+    if (r.ok) { dernier.moi.repondu = true; vueAttente(dernier, 'q' + dernier.idx + 'ok'); }
+    else if (r.erreur) { $('#msg') && ($('#msg').textContent = r.erreur); }
+    else { /* trop tard ou déjà répondu : l'écran suivant arrive tout seul */ }
+  });
+}
+
+function vueQuestion(e, id) {
+  if (stopTemps) stopTemps();
+  affiche = id;
+  const q = e.q;
+  let corps = '';
+  const tete = '<div class="theme"><span>' + esc(q.themeEmoji) + ' ' + esc(q.theme) + '</span><span>Question ' + (e.idx + 1) + ' / ' + e.total + '</span></div>' +
+    '<div class="temps" id="barre"><i></i></div><div style="text-align:center"><span class="compte" id="compte"></span> s</div>';
+  app.innerHTML = haut(e) + tete + '<div id="zone" style="display:flex;flex-direction:column;gap:14px"></div><p class="erreur" id="msg"></p>';
+  const z = $('#zone');
+  z.append(el('p', 'consigne', esc(q.consigne)));
+
+  if (q.type === 'imgmot') z.append(el('div', 'grandemoji', esc(q.emoji)));
+  if (q.type === 'motimg') z.append(el('div', 'enonce', esc(q.texte)));
+  if (q.type === 'phrase' || q.type === 'vf' || q.type === 'situation') z.append(el('div', 'enonce', esc(q.texte).replace(/___/g, '<span style="color:var(--ambre)">_____</span>')));
+  if (q.type === 'ecoute') {
+    const b = el('button', 'haut-parleur', '🔊'); b.setAttribute('aria-label', 'Écouter');
+    const ok = () => parler(q.parle);
+    b.onclick = ok; z.append(b);
+    if (!('speechSynthesis' in window)) z.append(el('p', 'expl', 'Pas de son sur cet appareil : lis cette phrase : « ' + esc(q.parle) + ' »'));
+    else z.append(el('p', 'expl', 'Touche le haut-parleur pour écouter.'));
+  }
+
+  if (q.options) {
+    const emoji = q.type === 'motimg', vf = q.type === 'vf';
+    const o = el('div', 'options' + (emoji || vf ? ' deux' : ''));
+    q.options.forEach((opt, i) => {
+      const b = el('button', 'opt ' + (vf ? 'vf ' + (i === 0 ? 'vrai' : 'faux') : 'c' + (i % 4)) + (emoji ? ' emoji' : ''),
+        (vf ? '' : '<span class="lettre">' + LETTRES[i] + '</span>') + (emoji ? esc(opt.e) : (vf ? (i === 0 ? '✔ Vrai' : '✘ Faux') : '<span>' + esc(opt.t) + '</span>')));
+      if (emoji) b.setAttribute('aria-label', 'Image ' + LETTRES[i]);
+      b.onclick = () => { b.classList.add('choisi'); envoie({ i }, o); };
+      o.append(b);
+    });
+    z.append(o);
+  }
+
+  if (q.type === 'ordre') {
+    const rep = el('div', 'tuiles reponse'), res = el('div', 'tuiles');
+    const ok = el('button', 'btn gros', 'Valider'); ok.disabled = true;
+    const maj = () => { ok.disabled = res.children.length > 0; };
+    q.tuiles.forEach((mot, i) => {
+      const t = el('button', 'tuile', esc(mot)); t.dataset.i = i;
+      t.onclick = () => { (t.parentNode === res ? rep : res).append(t); maj(); };
+      res.append(t);
+    });
+    ok.onclick = () => envoie({ ordre: [...rep.children].map(x => +x.dataset.i) }, z);
+    z.append(el('p', 'expl', 'Touche les mots dans le bon ordre.'), rep, res, ok);
+  }
+
+  if (q.type === 'ecrire') {
+    if (q.emoji) z.append(el('div', 'grandemoji', esc(q.emoji)));
+    if (q.texte) z.append(el('div', 'enonce', esc(q.texte).replace(/___/g, '<span style="color:var(--ambre)">_____</span>')));
+    z.append(el('div', 'motif', esc(q.motif)));
+    const sa = el('div', 'saisie');
+    const inp = document.createElement('input');
+    inp.type = 'text'; inp.setAttribute('autocomplete', 'off'); inp.setAttribute('autocapitalize', 'none');
+    inp.setAttribute('autocorrect', 'off'); inp.spellcheck = false; inp.lang = 'fr'; inp.enterKeyHint = 'send';
+    inp.setAttribute('aria-label', 'Ta réponse'); inp.maxLength = 40;
+    const ok = el('button', 'btn', 'OK');
+    const valide = () => { const t = inp.value.trim(); if (t) envoie({ texte: t }, z); };
+    ok.onclick = valide; inp.onkeydown = ev => { if (ev.key === 'Enter') valide(); };
+    sa.append(inp, ok);
+    const ac = el('div', 'accents');
+    'é è ê à â ç î ï ô ù û œ'.split(' ').forEach(c => {
+      const b = el('button', null, c); b.type = 'button';
+      b.onmousedown = ev => ev.preventDefault();
+      b.onclick = () => { const d = inp.selectionStart, f = inp.selectionEnd; inp.setRangeText(c, d, f, 'end'); inp.focus(); };
+      ac.append(b);
+    });
+    z.append(sa, ac);
+    setTimeout(() => inp.focus(), 150);
+  }
+
+  stopTemps = minuteur($('#barre'), $('#compte'), e.reste, q.temps * 1000, () => {
+    z.querySelectorAll('button,input').forEach(x => { x.disabled = true; });
+    const m = $('#msg'); if (m) m.textContent = 'Temps écoulé…';
+  });
+  window.scrollTo(0, 0);
+}
+
+function vueReveal(e) {
+  if (stopTemps) stopTemps();
+  affiche = 'rev' + e.idx;
+  const r = e.rev, q = e.q;
+  let cls = 'ko', ico = '✘', titre = 'Pas cette fois';
+  if (!r.repondu) { cls = 'ko'; ico = '⏱'; titre = 'Pas de réponse'; }
+  else if (r.ok && r.presque) { cls = 'pr'; ico = '≈'; titre = 'Presque ! Regarde l\'orthographe'; }
+  else if (r.ok) { cls = 'ok'; ico = '✔'; titre = 'Bravo !'; }
+  let bonne = esc(r.bonne);
+  if (q.type === 'motimg') bonne = '<span style="font-size:3rem">' + esc(r.bonne) + '</span>';
+  let sa = '';
+  if (r.repondu && !r.ok && r.sa !== '') {
+    let t = r.sa;
+    if (q.options && /^\d+$/.test(r.sa) && q.options[+r.sa]) t = q.options[+r.sa].t || q.options[+r.sa].e;
+    sa = '<p class="expl">Ta réponse : ' + esc(t) + '</p>';
+  }
+  let rang = '';
+  if (e.mode === 'equipes' && e.eqs) {
+    const mon = e.eqs.findIndex(x => e.moi.equipe && x.nom === e.moi.equipe.nom);
+    rang = '<p class="rang">Ton équipe : ' + (mon + 1) + (mon === 0 ? 'ʳᵉ' : 'ᵉ') + ' sur ' + e.eqs.length + '</p>';
+  } else rang = '<p class="rang">Tu es ' + e.moi.rang + (e.moi.rang === 1 ? 'ᵉʳ' : 'ᵉ') + ' sur ' + e.nbJoueurs + '</p>';
+  app.innerHTML = haut(e) +
+    '<div class="verdict ' + cls + '"><div class="gros">' + ico + '</div><h2>' + titre + '</h2>' + (r.pts ? '<div class="pts">+ ' + r.pts + ' pts</div>' : '') + '</div>' +
+    '<p class="sur" style="text-align:center">Bonne réponse</p><div class="bonne">' + bonne + '</div>' + sa +
+    (r.expl ? '<p class="expl">' + esc(r.expl) + '</p>' : '') + rang +
+    '<p class="doux" style="text-align:center">Regarde l\'écran du professeur…</p>';
+  window.scrollTo(0, 0);
+}
+
+function vueFin(e) {
+  if (stopTemps) stopTemps();
+  affiche = 'fin';
+  const f = e.fin;
+  let eq = '';
+  if (e.mode === 'equipes' && e.eqs && e.moi.equipe) {
+    const mon = e.eqs.findIndex(x => x.nom === e.moi.equipe.nom);
+    eq = '<p class="rang">Équipe ' + esc(e.moi.equipe.nom) + ' : ' + (mon + 1) + (mon === 0 ? 'ʳᵉ' : 'ᵉ') + ' place</p>';
+  }
+  app.innerHTML = marque() +
+    '<div class="verdict ok"><div class="gros">🏆</div><h2>Partie terminée !</h2><p>Tu es ' + f.rang + (f.rang === 1 ? 'ᵉʳ' : 'ᵉ') + ' sur ' + f.de + '</p><div class="pts">' + f.score + ' pts</div></div>' +
+    '<p class="rang">' + f.bonnes + ' bonne' + (f.bonnes > 1 ? 's' : '') + ' réponse' + (f.bonnes > 1 ? 's' : '') + ' sur ' + f.total + '</p>' + eq +
+    '<ul class="liste">' + e.top.map((x, i) => '<li><span class="r">' + (i + 1) + '</span>' + avatar(x.av) + '<span>' + esc(x.nom) + '</span><span class="n">' + x.score + '</span></li>').join('') + '</ul>' +
+    '<p class="doux" style="text-align:center">Merci d\'avoir joué ! Si le professeur relance une partie, tu restes ici.</p>';
+}
+
+/* ---------- démarrage ---------- */
+S = charge();
+if (S && S.code && S.id) ouvre(); else vueConnexion();
+</script>
+</body>
+</html>

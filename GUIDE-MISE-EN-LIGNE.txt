@@ -1,0 +1,51 @@
+METTRE LE MODE CLASSE SUR INTERNET (sans rien installer sur l'ordinateur de l'école)
+====================================================================================
+À faire UNE SEULE FOIS, depuis n'importe quel ordinateur, avant le cours.
+Exemple avec Render (gratuit). Les écrans des sites peuvent changer un peu
+de forme : cherchez les mêmes mots.
+
+PARTIE A — Mettre les fichiers sur GitHub (gratuit)
+1. Créez un compte sur https://github.com (si vous n'en avez pas).
+2. Cliquez "+" en haut à droite > "New repository". Nom : port-clair-classe.
+   Choisissez "Public" ou "Private", puis "Create repository".
+3. Sur la page du dépôt vide : lien "uploading an existing file".
+4. Dézippez ce paquet sur votre ordinateur. Ouvrez le dossier
+   Port-Clair-Classe-EnLigne et glissez TOUT son contenu dans la page GitHub
+   (serveur.js, banque.js, package.json, render.yaml, le dossier public...).
+   Le dossier "public" doit être déposé avec ses fichiers dedans (glissez le dossier
+   entier : GitHub accepte les dossiers avec Chrome, Edge ou Firefox).
+5. Cliquez "Commit changes".
+
+PARTIE B — Créer le site chez Render
+1. Allez sur https://render.com > "Get Started" > connectez-vous avec GitHub.
+2. "New +" > "Web Service" > choisissez le dépôt port-clair-classe.
+3. Réglages :
+     Language / Runtime : Node
+     Build Command      : (laissez vide ou écrivez : echo ok)
+     Start Command      : node serveur.js
+     Instance Type      : Free
+4. "Create Web Service". Attendez 2-3 minutes : "Your service is live".
+5. En haut de la page, Render affiche votre lien, par exemple
+     https://port-clair-classe.onrender.com
+
+PARTIE C — Le jour du cours
+1. 5 à 10 minutes avant : ouvrez  https://VOTRE-LIEN.onrender.com/prof
+   (la version gratuite s'endort sans visite et met ~1 minute à se réveiller).
+2. Créez la partie. Un code à 4 chiffres apparaît.
+3. Les élèves ouvrent  https://VOTRE-LIEN.onrender.com  (sans /prof),
+   tapent le code et leur prénom.
+   Astuce : écrivez le lien au tableau, ou créez-lui un QR code sur
+   un site gratuit de "générateur de QR code" et affichez-le.
+4. Le reste est identique au mode local (voir LISEZ-MOI.txt du premier paquet).
+
+À SAVOIR
+- Gratuit mais limité : si Render vous demande une carte bancaire, vérifiez bien
+  que l'offre choisie est "Free". D'autres hébergeurs Node.js existent
+  (Railway, Fly.io, Koyeb...) ; les fichiers sont les mêmes.
+- Les fichiers du jeu sont publics si le dépôt GitHub est public : ils ne
+  contiennent aucune donnée d'élève. Les prénoms ne vivent qu'en mémoire
+  pendant la partie.
+- Si le site redémarre pendant un cours, la partie en cours est perdue
+  (les élèves retapent le code).
+- Cette version n'a pas été testée chez un hébergeur réel, seulement en local.
+- Pour mettre à jour : remplacez les fichiers sur GitHub ; Render redéploie.

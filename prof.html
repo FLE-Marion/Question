@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Port-Clair · Classe (professeur)</title>
+<link rel="stylesheet" href="classe.css">
+</head>
+<body class="prof">
+<main id="app" class="large" aria-live="polite"></main>
+<script src="commun.js"></script>
+<script>
+const CLE = 'pc-prof';
+let P = null, es = null, info = null, dernier = null, stopTemps = null, affiche = '';
+let reglages = { themes: ['famille', 'logement', 'aliments', 'restaurant'], total: 20, mode: 'solo', nbEq: 5, mult: 1, vitesse: true, auto: false, ordre: 'melange' };
+const app = $('#app');
+const marque = () => '<div class="marque"><span style="font-size:2rem">🌊</span><div>Port-Clair<br><small>Mode Classe · professeur</small></div></div>';
+const MODES = [['solo', 'Chacun pour soi'], ['equipes', 'Par équipes']];
+
+function charge() { try { return JSON.parse(localStorage.getItem(CLE) || 'null'); } catch (e) { return null; } }
+function garde() { try { localStorage.setItem(CLE, JSON.stringify(P)); } catch (e) { /* */ } }
+function oublie() { try { localStorage.removeItem(CLE); } catch (e) { /* */ } P = null; }
+const act = (action, extra) => api('/api/prof', Object.assign({ code: P.code, token: P.token, action }, extra || {}));
+
+/* ---------- réglages (création et salle d'attente) ---------- */
+function formReglages(surChange) {
+  const r = reglages, f = el('div', 'carte');
+  f.innerHTML = '<h2 style="margin-bottom:10px">Thèmes</h2><div class="themes" id="themes"></div>' +
+    '<div class="grille-reglages" style="margin-top:16px">' +
+    sel('total', 'Nombre de questions', [10, 15, 20, 30, 40, 50].map(n => [n, n + ' questions']), r.total) +
+    sel('mode', 'Façon de jouer', MODES, r.mode) +
+    '<div class="champ" id="ch-eq"><label for="nbEq">Nombre d\'équipes</label><select id="nbEq">' + [2, 3, 4, 5, 6, 7, 8].map(n => '<option value="' + n + '"' + (n === r.nbEq ? ' selected' : '') + '>' + n + ' équipes</option>').join('') + '</select></div>' +
+    sel('mult', 'Temps pour répondre', [[1, 'Normal'], [1.5, 'Plus long (× 1,5)'], [2, 'Très long (× 2)']], r.mult) +
+    sel('vitesse', 'Points', [['1', 'Plus vite = plus de points'], ['0', 'Mêmes points pour tous']], r.vitesse ? '1' : '0') +
+    sel('ordre', 'Ordre des questions', [['melange', 'Mélangées'], ['theme', 'Thème après thème']], r.ordre) +
+    sel('auto', 'Question suivante', [['0', 'Quand je clique'], ['1', 'Automatique après 8 s']], r.auto ? '1' : '0') +
+    '</div>';
+  const zt = f.querySelector('#themes');
+  info.themes.forEach(t => {
+    const b = el('button', 'tcarte', '<span class="e">' + t.emoji + '</span><span>' + esc(t.titre) + '<br><small class="doux">' + t.n + ' questions</small></span>');
+    b.setAttribute('aria-pressed', r.themes.includes(t.id));
+    b.onclick = () => {
+      if (r.themes.includes(t.id)) { if (r.themes.length > 1) r.themes = r.themes.filter(x => x !== t.id); }
+      else r.themes = info.themes.map(x => x.id).filter(x => x === t.id || r.themes.includes(x));
+      b.setAttribute('aria-pressed', r.themes.includes(t.id));
+      f.querySelectorAll('.tcarte').forEach((x, i) => x.setAttribute('aria-pressed', r.themes.includes(info.themes[i].id)));
+      surChange();
+    };
+    zt.append(b);
+  });
+  const lit = () => {
+    r.total = +f.querySelector('#total').value; r.mode = f.querySelector('#mode').value; r.nbEq = +f.querySelector('#nbEq').value;
+    r.mult = +f.querySelector('#mult').value; r.vitesse = f.querySelector('#vitesse').value === '1';
+    r.ordre = f.querySelector('#ordre').value; r.auto = f.querySelector('#auto').value === '1';
+    f.querySelector('#ch-eq').hidden = r.mode !== 'equipes';
+    surChange();
+  };
+  f.querySelectorAll('select').forEach(s => { s.onchange = lit; });
+  f.querySelector('#ch-eq').hidden = r.mode !== 'equipes';
+  return f;
+}
+function sel(id, label, opts, val) {
+  return '<div class="champ"><label for="' + id + '">' + label + '</label><select id="' + id + '">' +
+    opts.map(o => '<option value="' + o[0] + '"' + (String(o[0]) === String(val) ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select></div>';
+}
+
+/* ---------- création ---------- */
+async function vueCreation() {
+  if (stopTemps) stopTemps();
+  affiche = 'creation';
+  if (!info) info = await (await fetch('/api/info')).json();
+  app.innerHTML = '';
+  app.append(el('div', 'entete', marque()));
+  app.append(el('h1', null, 'Nouvelle partie'));
+  app.append(formReglages(() => { }));
+  const m = el('p', 'erreur'); m.id = 'err';
+  const b = el('button', 'btn gros', 'Créer la partie');
+  b.onclick = async () => {
+    b.disabled = true;
+    const r = await api('/api/creer', Object.assign({}, reglages, { nbEquipes: reglages.nbEq }));
+    if (!r.ok) { m.textContent = r.erreur || 'Erreur.'; b.disabled = false; return; }
+    P = { code: r.code, token: r.token }; garde(); ouvre();
+  };
+  app.append(m, b);
+}
+function ouvre() {
+  if (es) es.close();
+  es = ouvreFlux('/api/flux?code=' + P.code + '&role=prof&token=' + P.token, rends, () => { oublie(); vueCreation(); });
+}
+
+/* ---------- affichage selon l'état ---------- */
+function rends(e) {
+  dernier = e;
+  if (e.reglages) Object.assign(reglages, { themes: e.reglages.themes, total: e.reglages.total, mode: e.reglages.mode, nbEq: e.reglages.nbEq, mult: e.reglages.mult, vitesse: e.reglages.vitesse, auto: e.reglages.auto, ordre: e.reglages.ordre });
+  if (e.etat === 'lobby') return vueSalle(e);
+  if (e.etat === 'question') {
+    if (affiche === 'q' + e.idx) return majQuestion(e);
+    return vueQuestion(e);
+  }
+  if (e.etat === 'reveal') return vueReveal(e);
+  vueFin(e);
+}
+function puces(e, retire) {
+  const z = el('div', 'joueurs');
+  e.joueurs.slice().sort((a, b) => a.nom.localeCompare(b.nom)).forEach(j => {
+    const eq = j.eq >= 0 && e.equipes[j.eq] ? e.equipes[j.eq] : null;
+    const p = el('span', 'puce' + (eq ? ' eq' : '') + (j.en ? '' : ' hors'), avatar(j.av) + esc(j.nom) + (j.bot ? ' <small class="doux">(test)</small>' : ''));
+    if (eq) p.style.borderColor = eq.hex;
+    if (retire) { const x = el('button', null, '✕'); x.title = 'Retirer ' + j.nom; x.setAttribute('aria-label', 'Retirer ' + j.nom); x.onclick = () => act('exclure', { id: j.id }); p.append(x); }
+    z.append(p);
+  });
+  return z;
+}
+function vueSalle(e) {
+  if (stopTemps) stopTemps();
+  const memeVue = affiche === 'salle';
+  affiche = 'salle';
+  if (memeVue) { $('#liste-joueurs').replaceChildren(puces(e, true)); $('#nb').textContent = e.joueurs.length; $('#demarrer').disabled = !e.joueurs.length; return; }
+  const ips = (info.adresses && info.adresses.length ? info.adresses : [location.hostname]).map(a => 'http://' + a + (info.port === 80 ? '' : ':' + info.port));
+  app.innerHTML = '';
+  app.append(el('div', 'entete', marque()));
+  const haut = el('div', 'carte');
+  haut.innerHTML = '<p class="sur" style="text-align:center">Les élèves ouvrent cette adresse sur leur tablette</p>' +
+    ips.map(u => '<p class="adresse">' + esc(u) + '</p>').join('') +
+    '<p class="sur" style="text-align:center;margin-top:10px">puis tapent le code</p><div class="code-geant">' + e.code + '</div>';
+  app.append(haut);
+  const j = el('div', 'carte');
+  j.innerHTML = '<h2 style="margin-bottom:10px">Élèves connectés : <span id="nb">' + e.joueurs.length + '</span></h2><div id="liste-joueurs"></div>';
+  j.querySelector('#liste-joueurs').append(puces(e, true));
+  app.append(j);
+  const d = el('details', 'carte'); d.innerHTML = '<summary style="cursor:pointer;font-weight:800;font-size:1.1rem">Réglages de la partie</summary>';
+  d.append(formReglages(() => { act('reglages', Object.assign({}, reglages, { nbEquipes: reglages.nbEq })); }));
+  app.append(d);
+  const m = el('p', 'erreur'); m.id = 'err';
+  const dem = el('button', 'btn gros', 'Démarrer la partie'); dem.id = 'demarrer'; dem.disabled = !e.joueurs.length;
+  dem.onclick = async () => { dem.disabled = true; const r = await act('demarrer'); if (!r.ok) { m.textContent = r.erreur || 'Impossible de démarrer.'; dem.disabled = false; } };
+  const test = el('button', 'btn sec', 'Essai : ajouter 12 élèves virtuels');
+  test.onclick = () => act('bots', { n: 12 });
+  const ann = el('button', 'btn sec', 'Annuler cette partie');
+  ann.onclick = () => { if (es) es.close(); oublie(); vueCreation(); };
+  const ctrl = el('div', 'ligne-ctrl'); ctrl.append(dem, test, ann);
+  app.append(m, ctrl);
+}
+
+/* corps d'une question à l'écran (partagé entre question et révélation) */
+function corpsQuestion(q, rev) {
+  const z = el('div', 'zone-q');
+  z.append(el('p', 'consigne', esc(q.consigne)));
+  if (q.type === 'imgmot') z.append(el('div', 'grandemoji', esc(q.emoji)));
+  if (q.type === 'motimg') z.append(el('div', 'q-gros', esc(q.texte)));
+  if (['phrase', 'vf', 'situation'].includes(q.type)) z.append(el('div', 'q-gros', esc(q.texte).replace(/___/g, '<span style="color:var(--ambre)">_____</span>')));
+  if (q.type === 'ecoute') {
+    const b = el('button', 'haut-parleur', '🔊'); b.setAttribute('aria-label', 'Écouter'); b.onclick = () => parler(q.parle); z.append(b);
+  }
+  if (q.options) {
+    const emoji = q.type === 'motimg', vf = q.type === 'vf';
+    const o = el('div', 'options');
+    q.options.forEach((opt, i) => {
+      const b = el('div', 'opt ' + (vf ? 'vf ' + (i === 0 ? 'vrai' : 'faux') : 'c' + (i % 4)) + (emoji ? ' emoji' : '') +
+        (rev ? (i === rev.bonneIdx ? ' bon' : ' mauvais') : ''),
+        (vf ? '' : '<span class="lettre">' + LETTRES[i] + '</span>') + (emoji ? esc(opt.e) : (vf ? (i === 0 ? '✔ Vrai' : '✘ Faux') : '<span>' + esc(opt.t) + '</span>')) +
+        (rev && rev.repartition ? '<span class="nb">' + rev.repartition[i] + '</span>' : ''));
+      o.append(b);
+    });
+    z.append(o);
+  }
+  if (q.type === 'ordre') {
+    z.append(el('div', 'tuiles', q.tuiles.map(t => '<span class="tuile">' + esc(t) + '</span>').join('')));
+  }
+  if (q.type === 'ecrire') {
+    if (q.emoji) z.append(el('div', 'grandemoji', esc(q.emoji)));
+    if (q.texte) z.append(el('div', 'q-gros', esc(q.texte).replace(/___/g, '<span style="color:var(--ambre)">_____</span>')));
+    z.append(el('div', 'motif', esc(q.motif)));
+  }
+  if (rev && (q.type === 'ecrire' || q.type === 'ordre')) z.append(el('div', 'bonne', '✔ ' + esc(rev.bonne)));
+  if (rev && rev.expl) z.append(el('p', 'expl', esc(rev.expl)));
+  return z;
+}
+function enteteQ(e, avecTemps) {
+  const h = el('div', 'entete');
+  h.innerHTML = '<div class="theme" style="gap:14px"><span style="font-size:1.4em">' + esc(e.q.themeEmoji) + '</span><span>' + esc(e.q.theme) + '</span><span>· Question ' + (e.idx + 1) + ' / ' + e.total + '</span></div>' +
+    (avecTemps ? '<div style="min-width:5em" class="compteur" id="compte"></div>' : '<div class="doux" id="rep"></div>');
+  return h;
+}
+function vueQuestion(e) {
+  if (stopTemps) stopTemps();
+  affiche = 'q' + e.idx;
+  app.innerHTML = '';
+  app.append(enteteQ(e, true));
+  const b = el('div', 'temps'); b.id = 'barre'; b.innerHTML = '<i></i>'; app.append(b);
+  app.append(corpsQuestion(e.q));
+  const st = el('p', 'rang', ''); st.id = 'etat-rep'; app.append(st);
+  const rv = el('button', 'btn gros', 'Montrer la réponse'); rv.onclick = () => act('reveler');
+  const fin = el('button', 'btn sec', 'Terminer la partie'); fin.onclick = () => act('terminer');
+  const c = el('div', 'ligne-ctrl'); c.append(rv, fin); app.append(c);
+  stopTemps = minuteur(b, $('#compte'), e.reste, e.q.temps * 1000, null);
+  majQuestion(e);
+  window.scrollTo(0, 0);
+}
+function majQuestion(e) {
+  const z = $('#etat-rep'); if (z) z.textContent = e.nbRep + ' / ' + e.joueurs.length + ' ont répondu';
+}
+function classementBloc(e) {
+  const z = el('div', 'carte');
+  if (e.mode === 'equipes') {
+    z.innerHTML = '<h2 style="margin-bottom:10px">Classement des équipes</h2>';
+    const max = Math.max(1, ...e.classementEq.map(x => x.score)), bl = el('div', 'barres');
+    e.classementEq.forEach(x => bl.append(el('div', 'barre', '<span class="nom"><span class="pastille" style="background:' + x.hex + '"></span>Équipe ' + esc(x.nom) + '</span><span class="fond"><i style="width:' + Math.round(100 * x.score / max) + '%;background:' + x.hex + '"></i></span><span class="val">' + x.score + '</span>')));
+    z.append(bl);
+  } else {
+    z.innerHTML = '<h2 style="margin-bottom:10px">Les 5 premiers</h2>';
+    const ul = el('ul', 'liste');
+    e.joueurs.slice(0, 5).forEach(j => ul.append(el('li', null, '<span class="r">' + j.rang + '</span>' + avatar(j.av) + '<span>' + esc(j.nom) + '</span>' + (j.pts ? '<span class="doux petit">+' + j.pts + '</span>' : '') + '<span class="n">' + j.score + '</span>')));
+    z.append(ul);
+  }
+  return z;
+}
+function vueReveal(e) {
+  if (stopTemps) stopTemps();
+  affiche = 'rev' + e.idx;
+  app.innerHTML = '';
+  app.append(enteteQ(e, false));
+  $('#rep').textContent = e.rev.nbOk + ' bonne' + (e.rev.nbOk > 1 ? 's' : '') + ' réponse' + (e.rev.nbOk > 1 ? 's' : '') + ' sur ' + e.rev.nbRep + ' réponse' + (e.rev.nbRep > 1 ? 's' : '');
+  const g = el('div', 'deux-col');
+  g.append(corpsQuestion(e.q, e.rev), classementBloc(e));
+  app.append(g);
+  const dernierQ = e.idx + 1 >= e.total;
+  const sv = el('button', 'btn gros', dernierQ ? 'Voir les résultats' : 'Question suivante →'); sv.onclick = () => act('suivant');
+  const fin = el('button', 'btn sec', 'Terminer la partie'); fin.onclick = () => act('terminer');
+  const c = el('div', 'ligne-ctrl'); c.append(sv, fin); app.append(c);
+  window.scrollTo(0, 0);
+}
+
+function csv(e) {
+  const th = e.themes, sep = ';';
+  const ligne = a => a.map(x => '"' + String(x == null ? '' : x).replace(/"/g, '""') + '"').join(sep);
+  const rows = [ligne(['Prénom', 'Équipe', 'Score', 'Bonnes réponses', 'Réponses données'].concat(th.map(t => t.titre + ' (justes / posées)')))];
+  e.detail.forEach(d => rows.push(ligne([d.nom, d.eq >= 0 && e.equipes[d.eq] ? e.equipes[d.eq].nom : '', d.score, d.bonnes, d.rep].concat(th.map(t => { const p = d.parTheme[t.id]; return p ? p.ok + ' / ' + p.n : ''; })))));
+  return '﻿' + rows.join('\r\n');
+}
+function vueFin(e) {
+  if (stopTemps) stopTemps();
+  affiche = 'fin';
+  app.innerHTML = '';
+  app.append(el('div', 'entete', marque()));
+  app.append(el('h1', null, 'Partie terminée !'));
+  const top = e.mode === 'equipes' ? e.classementEq.slice(0, 3).map(x => ({ nom: 'Équipe ' + x.nom, score: x.score, hex: x.hex })) : e.joueurs.slice(0, 3).map(j => ({ nom: j.nom, score: j.score, av: j.av }));
+  const ordre = [1, 0, 2].filter(i => top[i]);
+  const pod = el('div', 'podium');
+  ordre.forEach(i => {
+    const t = top[i];
+    pod.append(el('div', 'marche p' + (i + 1), (t.av !== undefined ? avatar(t.av) : '<span class="av" style="display:grid;place-items:center;background:' + t.hex + '">🏆</span>') + '<span>' + esc(t.nom) + '</span><span class="pts">' + t.score + '</span><div class="socle">' + ['🥇', '🥈', '🥉'][i] + '</div>'));
+  });
+  app.append(pod);
+  const g = el('div', 'deux-col');
+  const l = el('div', 'carte'); l.innerHTML = '<h2 style="margin-bottom:10px">Tous les élèves</h2>';
+  const ul = el('ul', 'liste');
+  e.joueurs.forEach(j => ul.append(el('li', null, '<span class="r">' + j.rang + '</span>' + avatar(j.av) + '<span>' + esc(j.nom) + '</span><span class="doux petit">' + j.bonnes + ' / ' + e.total + '</span><span class="n">' + j.score + '</span>')));
+  l.append(ul); g.append(l);
+  if (e.mode === 'equipes') { const c = classementBloc(e); c.querySelector('h2').textContent = 'Équipes'; g.append(c); }
+  app.append(g);
+  const dl = el('button', 'btn', 'Télécharger les résultats (tableur)');
+  dl.onclick = () => {
+    const u = URL.createObjectURL(new Blob([csv(e)], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a'); a.href = u; a.download = 'resultats-port-clair.csv'; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 2000);
+  };
+  const re = el('button', 'btn', 'Rejouer avec les mêmes élèves'); re.onclick = () => act('rejouer');
+  const nv = el('button', 'btn sec', 'Nouvelle partie (nouveau code)'); nv.onclick = () => { if (es) es.close(); oublie(); vueCreation(); };
+  const c = el('div', 'ligne-ctrl'); c.append(re, dl, nv); app.append(c);
+  window.scrollTo(0, 0);
+}
+
+/* ---------- démarrage ---------- */
+(async () => {
+  info = await (await fetch('/api/info')).json();
+  P = charge();
+  if (P && P.code && P.token) ouvre(); else vueCreation();
+})();
+</script>
+</body>
+</html>

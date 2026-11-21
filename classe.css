@@ -1,0 +1,128 @@
+:root{
+  --nuit:#1c1326;--prune:#2a1c3a;--prune2:#3b2a50;--trait:#52406b;--lilas:#b99de3;--ambre:#f3a85c;
+  --creme:#f7ede0;--sourdine:#b5a6c6;--ok:#72d6a3;--non:#ff8f7c;
+  --c0:#c93a3a;--c1:#2f66c9;--c2:#a86f00;--c3:#2f8f5b;
+  --texte:"Atkinson Hyperlegible","Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--nuit);color:var(--creme);font-family:var(--texte);font-size:18px;line-height:1.4;min-height:100vh;
+  padding:max(14px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--ambre);outline-offset:2px}
+h1,h2,h3,p{margin:0}
+.centre{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.marque{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.04em;color:var(--lilas)}
+.marque small{color:var(--ambre);font-weight:700;letter-spacing:.14em;text-transform:uppercase;font-size:.72rem}
+.carte{background:var(--prune);border:2px solid var(--trait);border-radius:20px;padding:16px}
+.sur{font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ambre);font-weight:700}
+.doux{color:var(--sourdine)}
+.btn{background:var(--lilas);color:#241533;border:0;border-radius:16px;padding:14px 20px;font-weight:800;font-size:1.05rem;min-height:52px}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.sec{background:var(--prune2);color:var(--creme);border:2px solid var(--trait)}
+.btn.gros{font-size:1.25rem;min-height:62px;width:100%}
+.champ{display:flex;flex-direction:column;gap:6px}
+.champ label{font-weight:700;color:var(--sourdine)}
+.champ input,.champ select{background:var(--prune);border:2px solid var(--trait);border-radius:14px;padding:14px;width:100%;font-size:1.2rem}
+.erreur{color:var(--non);font-weight:700}
+.av{width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid var(--trait);background:var(--prune2);flex:none}
+.puce{display:inline-flex;align-items:center;gap:8px;background:var(--prune2);border:2px solid var(--trait);border-radius:999px;padding:4px 14px 4px 4px;font-weight:700}
+.puce.eq{border-width:3px}
+.pastille{display:inline-block;width:14px;height:14px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+
+/* haut d'écran élève */
+.haut{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.haut .moi{display:flex;align-items:center;gap:8px;font-weight:700}
+.score{background:var(--prune2);border:2px solid var(--trait);border-radius:999px;padding:6px 14px;font-weight:800;color:var(--ambre)}
+.temps{height:12px;background:var(--prune2);border-radius:999px;overflow:hidden;border:2px solid var(--trait)}
+.temps i{display:block;height:100%;width:100%;background:var(--ambre);transform-origin:left;transition:background .3s}
+.temps.vite i{background:var(--non)}
+.compte{font-weight:800;color:var(--ambre);font-variant-numeric:tabular-nums}
+.theme{display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--sourdine);font-weight:700;font-size:.95rem}
+
+/* question */
+.enonce{font-size:1.45rem;font-weight:800;text-align:center;line-height:1.3;overflow-wrap:anywhere}
+.consigne{text-align:center;color:var(--lilas);font-weight:700}
+.grandemoji{font-size:clamp(88px,22vw,150px);text-align:center;line-height:1.05}
+.motif{font-family:ui-monospace,Consolas,monospace;font-size:1.5rem;letter-spacing:.18em;text-align:center;color:var(--ambre);white-space:pre-wrap;overflow-wrap:anywhere}
+.options{display:grid;gap:12px}
+.options.deux{grid-template-columns:1fr 1fr}
+.opt{display:flex;align-items:center;gap:12px;text-align:left;border:0;border-radius:18px;padding:16px;min-height:72px;color:#fff;font-weight:800;font-size:1.15rem;line-height:1.25;overflow-wrap:anywhere}
+.opt .lettre{flex:none;width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.22);display:grid;place-items:center;font-weight:800}
+.opt.c0{background:var(--c0)}.opt.c1{background:var(--c1)}.opt.c2{background:var(--c2)}.opt.c3{background:var(--c3)}
+.opt.emoji{justify-content:center;font-size:clamp(56px,14vw,92px);min-height:120px;padding:8px}
+.opt.emoji .lettre{position:absolute;top:8px;left:8px;width:26px;height:26px;font-size:.9rem}
+.opt.emoji{position:relative}
+.opt.choisi{outline:5px solid var(--creme);outline-offset:2px}
+.opt.vrai{background:var(--c3)}.opt.faux{background:var(--c0)}
+.opt.vf{justify-content:center;font-size:1.5rem;min-height:96px}
+.opt:disabled{opacity:.55}.opt.choisi:disabled{opacity:1}
+.opt.bon{outline:5px solid var(--ok);opacity:1}
+.opt.mauvais{opacity:.35}
+.haut-parleur{align-self:center;background:var(--prune2);border:2px solid var(--ambre);border-radius:999px;padding:16px 28px;font-size:2rem}
+.tuiles{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;min-height:64px;padding:10px;border-radius:16px}
+.tuiles.reponse{background:var(--prune);border:2px dashed var(--trait)}
+.tuile{background:var(--creme);color:#2b2233;border:0;border-radius:14px;padding:12px 16px;font-weight:800;font-size:1.2rem;min-height:52px;box-shadow:0 3px 0 rgba(0,0,0,.35)}
+.saisie{display:flex;gap:10px}
+.saisie input{flex:1;min-width:0;background:var(--prune);border:3px solid var(--lilas);border-radius:16px;padding:14px;font-size:1.5rem;font-weight:700;text-align:center}
+.accents{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.accents button{background:var(--prune2);border:2px solid var(--trait);border-radius:12px;min-width:46px;height:46px;font-size:1.3rem;font-weight:700}
+.attente{text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center;padding:22px}
+.attente .coche{font-size:56px}
+
+/* révélation */
+.verdict{text-align:center;display:flex;flex-direction:column;gap:6px;align-items:center;border-radius:22px;padding:18px;border:3px solid var(--trait);background:var(--prune)}
+.verdict .gros{font-size:3.4rem;line-height:1}
+.verdict.ok{border-color:var(--ok)}.verdict.ko{border-color:var(--non)}.verdict.pr{border-color:var(--ambre)}
+.verdict h2{font-size:1.5rem}
+.pts{color:var(--ok);font-size:1.6rem;font-weight:800}
+.bonne{background:var(--prune2);border-radius:14px;padding:10px 14px;text-align:center;font-weight:800;font-size:1.25rem;overflow-wrap:anywhere}
+.expl{text-align:center;color:var(--sourdine)}
+.rang{text-align:center;font-size:1.2rem;font-weight:700}
+.liste{display:flex;flex-direction:column;gap:8px;list-style:none;margin:0;padding:0}
+.liste li{display:flex;align-items:center;gap:10px;background:var(--prune);border:2px solid var(--trait);border-radius:14px;padding:6px 14px 6px 6px;font-weight:700}
+.liste li .n{margin-left:auto;font-weight:800;color:var(--ambre);font-variant-numeric:tabular-nums}
+.liste li .r{width:28px;text-align:center;color:var(--sourdine)}
+.barres{display:flex;flex-direction:column;gap:8px}
+.barre{display:flex;align-items:center;gap:10px}
+.barre .nom{width:7.5em;font-weight:700;flex:none}
+.barre .fond{flex:1;background:var(--prune2);border-radius:999px;height:26px;overflow:hidden}
+.barre .fond i{display:block;height:100%;border-radius:999px;transition:width .6s}
+.barre .val{width:4.5em;text-align:right;font-weight:800;font-variant-numeric:tabular-nums}
+
+/* professeur : grand écran */
+body.prof{font-size:clamp(18px,1.6vw,26px)}
+.prof .large{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.entete{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.themes{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.tcarte{display:flex;align-items:center;gap:10px;background:var(--prune);border:3px solid var(--trait);border-radius:16px;padding:12px;font-weight:700;text-align:left}
+.tcarte[aria-pressed="true"]{border-color:var(--lilas);background:var(--prune2)}
+.tcarte .e{font-size:2rem}
+.grille-reglages{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.code-geant{font-size:clamp(64px,13vw,150px);font-weight:800;letter-spacing:.12em;color:var(--ambre);line-height:1;text-align:center}
+.adresse{font-size:clamp(22px,3vw,44px);font-weight:800;text-align:center;overflow-wrap:anywhere}
+.joueurs{display:flex;flex-wrap:wrap;gap:10px}
+.joueurs .puce button{background:none;border:0;color:var(--sourdine);font-size:1.1rem;padding:0 0 0 4px}
+.puce.hors{opacity:.45}
+.zone-q{display:grid;gap:16px}
+.q-gros{font-size:clamp(26px,3.4vw,52px);font-weight:800;text-align:center;line-height:1.25;overflow-wrap:anywhere}
+.prof .grandemoji{font-size:clamp(100px,16vw,230px)}
+.prof .options{grid-template-columns:1fr 1fr}
+.prof .opt{cursor:default;font-size:clamp(20px,2.4vw,36px);min-height:96px}
+.prof .opt.emoji{font-size:clamp(70px,10vw,140px);min-height:160px}
+.prof .opt.bon{outline:8px solid var(--ok)}
+.prof .opt .nb{margin-left:auto;background:rgba(0,0,0,.35);border-radius:999px;padding:2px 14px;font-size:.8em}
+.compteur{font-size:clamp(40px,6vw,88px);font-weight:800;color:var(--ambre);font-variant-numeric:tabular-nums;text-align:center;line-height:1}
+.ligne-ctrl{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.podium{display:flex;gap:16px;justify-content:center;align-items:flex-end;margin:10px 0}
+.podium .marche{display:flex;flex-direction:column;align-items:center;gap:6px;font-weight:800;text-align:center}
+.podium .marche .av{width:clamp(70px,10vw,130px);height:clamp(70px,10vw,130px)}
+.podium .socle{width:clamp(110px,16vw,220px);border-radius:14px 14px 0 0;background:var(--prune2);border:3px solid var(--trait);display:grid;place-items:start center;padding-top:8px;font-size:2rem}
+.podium .p1 .socle{height:150px;background:#5a4220;border-color:var(--ambre)}
+.podium .p2 .socle{height:105px}.podium .p3 .socle{height:75px}
+.deux-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:760px){.deux-col{grid-template-columns:1fr}.prof .options{grid-template-columns:1fr}}
+.petit{font-size:.85rem}

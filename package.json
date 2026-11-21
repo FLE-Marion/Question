@@ -1,0 +1,10 @@
+{
+  "name": "port-clair-classe",
+  "version": "1.0.0",
+  "description": "Port-Clair - Mode Classe (jeu de français en direct)",
+  "main": "serveur.js",
+  "scripts": { "start": "node serveur.js" },
+  "engines": { "node": ">=18" },
+  "license": "UNLICENSED",
+  "private": true
+}

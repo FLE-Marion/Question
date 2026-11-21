@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: port-clair-classe
+    runtime: node
+    plan: free
+    buildCommand: "echo rien a installer"
+    startCommand: "node serveur.js"
