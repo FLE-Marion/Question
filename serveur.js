@@ -8,7 +8,8 @@ const http = require('http'), fs = require('fs'), path = require('path'), os = r
 const B = require('./banque.js');
 
 const PORT = +process.env.PORT || 8080;
-const PUB = path.join(__dirname, 'public');
+const PUB = fs.existsSync(path.join(__dirname, 'public', 'eleve.html')) ? path.join(__dirname, 'public') : __dirname; // tolère les fichiers mis à plat
+const PRIVES = new Set(['serveur.js', 'banque.js', 'package.json', 'render.yaml', 'download']);
 const parties = new Map();
 
 const COULEURS_EQ = [
@@ -304,7 +305,7 @@ function adresses() {
   return r;
 }
 function fichier(res, nom) {
-  if (!/^[a-zA-Z0-9._-]+$/.test(nom)) return json(res, 404, { erreur: 'introuvable' });
+  if (!/^[a-zA-Z0-9._-]+$/.test(nom) || PRIVES.has(nom) || !TYPES[path.extname(nom)]) return json(res, 404, { erreur: 'introuvable' });
   const f = path.join(PUB, nom);
   fs.readFile(f, (e, data) => {
     if (e) return json(res, 404, { erreur: 'introuvable' });
