@@ -250,7 +250,7 @@ function vueProf(g) {
   }
   if (g.etat === 'fin') {
     v.themes = g.themes.map(t => ({ id: t, titre: B.THEMES[t].titre }));
-    v.detail = liste.map(j => ({ nom: j.nom, eq: j.eq, score: j.score, bonnes: j.bonnes, rep: j.reps, parTheme: j.parTheme }));
+    v.detail = liste.map(j => ({ nom: j.nom, eq: j.eq, bot: !!j.bot, score: j.score, bonnes: j.bonnes, rep: j.reps, parTheme: j.parTheme }));
   }
   return v;
 }
@@ -321,6 +321,7 @@ const serveur = http.createServer(async (req, res) => {
     if (req.method === 'GET') {
       if (p === '/' || p === '/eleve') return fichier(res, 'eleve.html');
       if (p === '/prof') return fichier(res, 'prof.html');
+      if (p === '/suivi') return fichier(res, 'suivi.html');
       if (p === '/api/info') return json(res, 200, {
         port: PORT, adresses: adresses(),
         themes: B.ORDRE.map(id => ({ id, titre: B.THEMES[id].titre, emoji: B.THEMES[id].emoji, n: capa(id) }))

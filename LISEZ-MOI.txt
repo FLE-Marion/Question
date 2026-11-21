@@ -1,0 +1,6 @@
+MISE A JOUR : CARNET DE SUIVI
+Sur GitHub (depot FLE-Marion/Question) : Add file > Upload files.
+Glissez les 6 fichiers de ce dossier (tous a la racine, a cote de eleve.html), puis "Commit changes".
+Render se met a jour tout seul en 1 a 2 minutes.
+Ensuite : ouvrez l'espace prof, creez une partie (champ "Classe / groupe"), et a la fin cliquez "Carnet de suivi".
+Le carnet est garde dans le navigateur du prof : pensez a telecharger une sauvegarde (onglet Donnees).

@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Port-Clair · Carnet de suivi</title>
+<link rel="stylesheet" href="classe.css">
+<style>
+  .onglets{display:flex;gap:8px;flex-wrap:wrap}
+  .onglets button{background:var(--prune);border:2px solid var(--trait);border-radius:999px;padding:10px 20px;font-weight:800}
+  .onglets button[aria-pressed="true"]{background:var(--lilas);color:#241533;border-color:var(--lilas)}
+  .filtres{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+  .filtres .champ{min-width:200px}
+  .defile{overflow-x:auto;border-radius:16px;border:2px solid var(--trait);background:var(--prune)}
+  table.suivi{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+  table.suivi th,table.suivi td{padding:8px 10px;text-align:center;white-space:nowrap}
+  table.suivi th{position:sticky;top:0;background:var(--prune2);font-size:.82rem;font-weight:700;color:var(--sourdine)}
+  table.suivi th:first-child,table.suivi td:first-child{text-align:left;position:sticky;left:0;background:var(--prune2);z-index:1}
+  table.suivi tr+tr td{border-top:1px solid var(--trait)}
+  .cell{display:inline-block;min-width:3.4em;padding:3px 8px;border-radius:8px;font-weight:800;color:#1c1326}
+  .cell.vide{background:transparent;color:var(--sourdine);font-weight:400}
+  .lien{background:none;border:0;color:var(--creme);font-weight:800;text-decoration:underline;text-decoration-color:var(--trait);padding:0;text-align:left;font-size:inherit}
+  .cartes{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+  .stat{background:var(--prune);border:2px solid var(--trait);border-radius:16px;padding:12px 16px}
+  .stat b{display:block;font-size:1.9rem;color:var(--ambre);line-height:1.1}
+  .legende{display:flex;gap:14px;flex-wrap:wrap;color:var(--sourdine);font-size:.9rem;align-items:center}
+  .legende i{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:4px}
+  svg.graph{width:100%;height:auto;display:block}
+  svg.graph text{fill:var(--sourdine);font-family:inherit}
+  .haut-tabl{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .petit-btn{background:var(--prune2);border:2px solid var(--trait);border-radius:12px;padding:6px 12px;font-weight:700;min-height:40px}
+  .danger{border-color:var(--non);color:var(--non)}
+  input.court,select.court{background:var(--prune);border:2px solid var(--trait);border-radius:12px;padding:8px 10px;font-size:1rem;min-width:0}
+</style>
+</head>
+<body class="prof">
+<main id="app" class="large"></main>
+<script src="commun.js"></script>
+<script>
+const CARNET = 'pc-carnet';
+let C = { version: 1, parties: [] }, vue = 'classe', groupe = '', eleveCle = '', mesure = 'pct', msg = '';
+const app = $('#app');
+
+/* ---------- données ---------- */
+function charge() { try { const c = JSON.parse(localStorage.getItem(CARNET) || 'null'); if (c && Array.isArray(c.parties)) C = c; } catch (e) { /* */ } }
+function garde() { try { localStorage.setItem(CARNET, JSON.stringify(C)); return true; } catch (e) { msg = '⚠️ Impossible d\'enregistrer (navigateur en navigation privée ?).'; return false; } }
+const cleNom = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
+const posees = e => { let n = 0; Object.values(e.parTheme || {}).forEach(p => { n += p.n; }); return n || e.rep || 0; };
+const pct = e => { const n = posees(e); return n ? Math.round(100 * e.bonnes / n) : 0; };
+const dateCourte = t => new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+const dateLongue = t => new Date(t).toLocaleString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+const parties = () => C.parties.filter(p => !groupe || (groupe === '__vide' ? !(p.groupe || '') : (p.groupe || '') === groupe)).sort((a, b) => a.t - b.t);
+const groupes = () => [...new Set(C.parties.map(p => p.groupe || ''))].sort();
+function eleves() {
+  const m = new Map();
+  parties().forEach(p => p.eleves.forEach(e => {
+    const k = cleNom(e.nom);
+    if (!m.has(k)) m.set(k, { cle: k, nom: e.nom, passages: [] });
+    const o = m.get(k); o.nom = e.nom; o.passages.push({ p, e });
+  }));
+  return [...m.values()].sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+}
+function titresThemes() {
+  const t = {}; C.parties.forEach(p => Object.keys(p.titres || {}).forEach(id => { t[id] = p.titres[id]; })); return t;
+}
+function statThemes(passages) {
+  const r = {};
+  passages.forEach(({ e }) => Object.keys(e.parTheme || {}).forEach(id => { const x = r[id] = r[id] || { ok: 0, n: 0 }; x.ok += e.parTheme[id].ok; x.n += e.parTheme[id].n; }));
+  return r;
+}
+function couleur(v) { // 0 % rouge → 100 % vert
+  const h = Math.round(v * 1.25); return 'hsl(' + h + ',68%,' + (60 - Math.abs(v - 50) / 10) + '%)';
+}
+function moyenne(a) { return a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0; }
+function tendance(passages) {
+  const v = passages.map(x => pct(x.e));
+  if (v.length < 2) return '<span class="doux">—</span>';
+  const dernier = moyenne(v.slice(-2)), avant = moyenne(v.slice(0, -2).slice(-3).length ? v.slice(0, -2).slice(-3) : v.slice(0, 1));
+  const d = Math.round(dernier - avant);
+  if (d >= 5) return '<span style="color:var(--ok);font-weight:800">▲ +' + d + '</span>';
+  if (d <= -5) return '<span style="color:var(--non);font-weight:800">▼ ' + d + '</span>';
+  return '<span class="doux">= stable</span>';
+}
+
+/* ---------- graphiques (SVG) ---------- */
+function courbe(pts, max, unite) {
+  const W = 900, H = 320, g = 54, d = 30, b = 52;
+  const x = i => pts.length === 1 ? W / 2 : g + i * (W - g - d) / (pts.length - 1);
+  const y = v => H - b - (v / max) * (H - b - 20);
+  let s = '<svg class="graph" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Évolution">';
+  const pas = max <= 100 ? 25 : Math.pow(10, Math.floor(Math.log10(max))) / (max / Math.pow(10, Math.floor(Math.log10(max))) < 3 ? 2 : 1);
+  for (let v = 0; v <= max + 0.001; v += pas) s += '<line x1="' + g + '" x2="' + (W - d) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="var(--trait)" stroke-width="1"/><text x="' + (g - 8) + '" y="' + (y(v) + 5) + '" text-anchor="end" font-size="14">' + Math.round(v) + unite + '</text>';
+  if (pts.length > 1) s += '<polyline fill="none" stroke="var(--ambre)" stroke-width="4" stroke-linejoin="round" points="' + pts.map((p, i) => x(i) + ',' + y(p.v)).join(' ') + '"/>';
+  pts.forEach((p, i) => {
+    s += '<g><title>' + esc(p.tip) + '</title><circle cx="' + x(i) + '" cy="' + y(p.v) + '" r="7" fill="var(--ambre)" stroke="var(--nuit)" stroke-width="3"/></g>';
+    s += '<text x="' + x(i) + '" y="' + (y(p.v) - 14) + '" text-anchor="middle" font-size="15" style="fill:var(--creme);font-weight:700">' + Math.round(p.v) + '</text>';
+    if (pts.length <= 14 || i % Math.ceil(pts.length / 14) === 0) s += '<text x="' + x(i) + '" y="' + (H - 22) + '" text-anchor="middle" font-size="13">' + esc(p.x) + '</text>';
+  });
+  return s + '</svg>';
+}
+function barresThemes(stats, titres, ordre) {
+  const ids = (ordre || Object.keys(stats)).filter(id => stats[id] && stats[id].n);
+  if (!ids.length) return '<p class="doux">Pas encore de données.</p>';
+  let h = '<div class="barres">';
+  ids.forEach(id => {
+    const s = stats[id], v = Math.round(100 * s.ok / s.n), t = titres[id] || { titre: id, emoji: '' };
+    h += '<div class="barre"><span class="nom" style="width:13em">' + esc(t.emoji || '') + ' ' + esc(t.titre) + '</span><span class="fond"><i style="width:' + v + '%;background:' + couleur(v) + '"></i></span><span class="val" style="width:9em">' + v + ' % <small class="doux">(' + s.ok + '/' + s.n + ')</small></span></div>';
+  });
+  return h + '</div>';
+}
+
+/* ---------- vues ---------- */
+function entete() {
+  const gs = groupes();
+  const f = el('div', 'filtres');
+  f.innerHTML = '<div class="champ"><label for="gr">Classe / groupe</label><select id="gr"><option value="">Tous</option>' + gs.filter(x => x).map(x => '<option' + (x === groupe ? ' selected' : '') + '>' + esc(x) + '</option>').join('') + (gs.includes('') ? '<option value="__vide"' + (groupe === '__vide' ? ' selected' : '') + '>(sans nom)</option>' : '') + '</select></div>';
+  f.querySelector('#gr').onchange = ev => { groupe = ev.target.value; rends(); };
+  return f;
+}
+function rends() {
+  charge();
+  app.innerHTML = '';
+  const h = el('div', 'entete', '<div class="marque"><span style="font-size:2rem">🌊</span><div>Port-Clair<br><small>Carnet de suivi</small></div></div><a class="btn sec" href="/prof" style="text-decoration:none">← Retour au jeu</a>');
+  app.append(h);
+  app.append(el('h1', null, 'Suivi des élèves'));
+  if (!C.parties.length) {
+    app.append(el('div', 'carte', '<h2>Le carnet est vide</h2><p class="doux" style="margin-top:8px">Joue une partie avec tes élèves : à la fin, les résultats sont enregistrés ici automatiquement (prénoms, scores, résultats par thème). Les parties d\'essai avec élèves virtuels ne sont pas enregistrées.</p><p class="doux petit" style="margin-top:8px">Le carnet est gardé dans ce navigateur, sur cet ordinateur : utilise toujours le même, et télécharge une sauvegarde de temps en temps (onglet « Données »).</p>'));
+    app.append(donnees(true));
+    return;
+  }
+  if (msg) { app.append(el('p', 'carte', esc(msg))); msg = ''; }
+  const nav = el('div', 'onglets');
+  [['classe', '📊 Classe'], ['eleve', '🧑 Un élève'], ['parties', '🗓️ Parties'], ['donnees', '💾 Données']].forEach(([id, l]) => {
+    const b = el('button', null, l); b.setAttribute('aria-pressed', vue === id); b.onclick = () => { vue = id; rends(); }; nav.append(b);
+  });
+  app.append(nav);
+  if (vue !== 'donnees') app.append(entete());
+  if (vue === 'classe') app.append(vueClasse());
+  if (vue === 'eleve') app.append(vueEleve());
+  if (vue === 'parties') app.append(vueParties());
+  if (vue === 'donnees') app.append(donnees(false));
+}
+
+function vueClasse() {
+  const z = el('div', 'centre'); z.style.maxWidth = 'none'; z.style.width = '100%'; z.style.margin = '0';
+  const ps = parties(), es = eleves(), titres = titresThemes();
+  if (!ps.length) { z.append(el('p', 'doux', 'Aucune partie pour ce groupe.')); return z; }
+  const tous = []; es.forEach(e => e.passages.forEach(x => tous.push(x)));
+  const statsClasse = statThemes(tous);
+  const idsThemes = Object.keys(titres).filter(id => statsClasse[id]).sort((a, b) => statsClasse[b].n - statsClasse[a].n);
+  const cartes = el('div', 'cartes');
+  cartes.innerHTML = '<div class="stat">Parties<b>' + ps.length + '</b></div><div class="stat">Élèves<b>' + es.length + '</b></div><div class="stat">Réussite moyenne<b>' + Math.round(moyenne(tous.map(x => pct(x.e)))) + ' %</b></div><div class="stat">Meilleur score<b>' + Math.max(...tous.map(x => x.e.score)) + '</b></div>';
+  z.append(cartes);
+  const c1 = el('div', 'carte'); c1.innerHTML = '<h2 style="margin-bottom:10px">Réussite de la classe par thème</h2>' + barresThemes(statsClasse, titres, idsThemes);
+  z.append(c1);
+  const c2 = el('div', 'carte');
+  c2.innerHTML = '<div class="haut-tabl"><h2>Chaque élève, thème par thème</h2><div class="legende"><span><i style="background:' + couleur(10) + '"></i>à revoir</span><span><i style="background:' + couleur(55) + '"></i>moyen</span><span><i style="background:' + couleur(95) + '"></i>très bien</span></div></div>';
+  const t = el('table', 'suivi');
+  t.innerHTML = '<thead><tr><th>Élève</th><th>Parties</th><th>Réussite</th><th>Score moyen</th><th>Meilleur</th><th>Évolution</th>' + idsThemes.map(id => '<th title="' + esc(titres[id].titre) + '"><span style="font-size:1.3rem">' + esc(titres[id].emoji) + '</span><br>' + esc(titres[id].titre.replace(/^(Les?|La|Mon|Ma|Mes|Au|Dans) /, '').slice(0, 14)) + '</th>').join('') + '</tr></thead>';
+  const tb = el('tbody');
+  es.forEach(e => {
+    const st = statThemes(e.passages), r = Math.round(moyenne(e.passages.map(x => pct(x.e))));
+    const tr = el('tr');
+    tr.innerHTML = '<td><button class="lien" data-k="' + esc(e.cle) + '">' + esc(e.nom) + '</button></td><td>' + e.passages.length + '</td><td><span class="cell" style="background:' + couleur(r) + '">' + r + ' %</span></td><td>' + Math.round(moyenne(e.passages.map(x => x.e.score))) + '</td><td>' + Math.max(...e.passages.map(x => x.e.score)) + '</td><td>' + tendance(e.passages) + '</td>' +
+      idsThemes.map(id => { const s = st[id]; if (!s || !s.n) return '<td><span class="cell vide">·</span></td>'; const v = Math.round(100 * s.ok / s.n); return '<td title="' + s.ok + ' justes sur ' + s.n + '"><span class="cell" style="background:' + couleur(v) + '">' + v + ' %</span></td>'; }).join('');
+    tb.append(tr);
+  });
+  t.append(tb);
+  t.querySelectorAll('.lien').forEach(b => { b.onclick = () => { eleveCle = b.dataset.k; vue = 'eleve'; rends(); window.scrollTo(0, 0); }; });
+  const d = el('div', 'defile'); d.append(t); c2.append(d);
+  c2.append(el('p', 'doux petit', 'Chaque case = % de bonnes réponses sur toutes les parties du thème (survole une case pour voir « justes / posées »). Clique sur un prénom pour voir sa progression.'));
+  z.append(c2);
+  return z;
+}
+
+function vueEleve() {
+  const z = el('div', 'centre'); z.style.maxWidth = 'none'; z.style.width = '100%'; z.style.margin = '0';
+  const es = eleves(), titres = titresThemes();
+  if (!es.length) { z.append(el('p', 'doux', 'Aucun élève pour ce groupe.')); return z; }
+  if (!es.some(e => e.cle === eleveCle)) eleveCle = es[0].cle;
+  const e = es.find(x => x.cle === eleveCle);
+  const ch = el('div', 'champ'); ch.style.maxWidth = '320px';
+  ch.innerHTML = '<label for="el">Élève</label><select id="el">' + es.map(x => '<option value="' + esc(x.cle) + '"' + (x.cle === eleveCle ? ' selected' : '') + '>' + esc(x.nom) + '</option>').join('') + '</select>';
+  ch.querySelector('select').onchange = ev => { eleveCle = ev.target.value; rends(); };
+  z.append(ch);
+  const sc = e.passages.map(x => x.e.score), pc = e.passages.map(x => pct(x.e));
+  const cartes = el('div', 'cartes');
+  cartes.innerHTML = '<div class="stat">Parties jouées<b>' + e.passages.length + '</b></div><div class="stat">Réussite moyenne<b>' + Math.round(moyenne(pc)) + ' %</b></div><div class="stat">Score moyen<b>' + Math.round(moyenne(sc)) + '</b></div><div class="stat">Meilleur score<b>' + Math.max(...sc) + '</b></div><div class="stat">Évolution<b style="font-size:1.3rem">' + tendance(e.passages) + '</b></div>';
+  z.append(cartes);
+  const c1 = el('div', 'carte');
+  const bascule = el('div', 'onglets'); bascule.style.marginBottom = '10px';
+  [['pct', 'Réussite (%)'], ['score', 'Score']].forEach(([id, l]) => { const b = el('button', null, l); b.setAttribute('aria-pressed', mesure === id); b.onclick = () => { mesure = id; rends(); }; bascule.append(b); });
+  c1.innerHTML = '<h2 style="margin-bottom:10px">Progression de ' + esc(e.nom) + '</h2>';
+  c1.append(bascule);
+  const pts = e.passages.map(x => ({ x: dateCourte(x.p.t), v: mesure === 'pct' ? pct(x.e) : x.e.score, tip: dateLongue(x.p.t) + ' — ' + x.e.score + ' pts, ' + x.e.bonnes + ' bonnes réponses sur ' + posees(x.e) + ' (' + pct(x.e) + ' %)' }));
+  const gz = el('div'); gz.innerHTML = courbe(pts, mesure === 'pct' ? 100 : Math.max(1000, Math.ceil(Math.max(...sc) / 1000) * 1000), mesure === 'pct' ? ' %' : '');
+  c1.append(gz);
+  c1.append(el('p', 'doux petit', mesure === 'pct' ? 'Le % de bonnes réponses permet de comparer des parties de longueurs différentes.' : 'Le score dépend du nombre de questions et de la vitesse de réponse.'));
+  z.append(c1);
+  const c2 = el('div', 'carte'); c2.innerHTML = '<h2 style="margin-bottom:10px">Réussite par thème</h2>' + barresThemes(statThemes(e.passages), titres, Object.keys(titres));
+  z.append(c2);
+  const c3 = el('div', 'carte'); c3.innerHTML = '<h2 style="margin-bottom:10px">Parties</h2>';
+  const t = el('table', 'suivi');
+  t.innerHTML = '<thead><tr><th>Date</th><th>Groupe</th><th>Score</th><th>Bonnes</th><th>Réussite</th><th>Thèmes</th></tr></thead><tbody>' + e.passages.slice().reverse().map(x => '<tr><td>' + esc(dateLongue(x.p.t)) + '</td><td>' + esc(x.p.groupe || '—') + '</td><td>' + x.e.score + '</td><td>' + x.e.bonnes + ' / ' + posees(x.e) + '</td><td><span class="cell" style="background:' + couleur(pct(x.e)) + '">' + pct(x.e) + ' %</span></td><td style="white-space:normal;text-align:left">' + esc(x.p.themes.map(id => (x.p.titres[id] || { titre: id }).titre).join(', ')) + '</td></tr>').join('') + '</tbody>';
+  const d = el('div', 'defile'); d.append(t); c3.append(d); z.append(c3);
+  return z;
+}
+
+function vueParties() {
+  const z = el('div', 'centre'); z.style.maxWidth = 'none'; z.style.width = '100%'; z.style.margin = '0';
+  const ps = parties().slice().reverse();
+  if (!ps.length) { z.append(el('p', 'doux', 'Aucune partie pour ce groupe.')); return z; }
+  const c = el('div', 'carte'); c.innerHTML = '<h2 style="margin-bottom:10px">Parties enregistrées (' + ps.length + ')</h2>';
+  const ul = el('ul', 'liste');
+  ps.forEach(p => {
+    const li = el('li'); li.style.flexWrap = 'wrap'; li.style.padding = '10px 14px';
+    li.innerHTML = '<span style="min-width:12em"><b>' + esc(dateLongue(p.t)) + '</b><br><small class="doux">' + p.eleves.length + ' élève' + (p.eleves.length > 1 ? 's' : '') + ' · ' + esc(p.themes.map(id => (p.titres[id] || { titre: id }).titre).join(', ')) + (p.mode === 'equipes' ? ' · en équipes' : '') + '</small></span>';
+    const g = document.createElement('input'); g.className = 'court'; g.maxLength = 30; g.placeholder = 'Classe / groupe'; g.value = p.groupe || ''; g.setAttribute('aria-label', 'Classe ou groupe de cette partie');
+    g.onchange = () => { p.groupe = g.value.trim(); if (garde()) { msg = ''; } };
+    const d = el('button', 'petit-btn danger', 'Supprimer'); d.style.marginLeft = 'auto';
+    d.onclick = () => {
+      if (d.dataset.ok) { C.parties = C.parties.filter(x => x.id !== p.id); garde(); rends(); return; }
+      d.dataset.ok = '1'; d.textContent = 'Confirmer la suppression'; setTimeout(() => { delete d.dataset.ok; d.textContent = 'Supprimer'; }, 4000);
+    };
+    li.append(g, d); ul.append(li);
+  });
+  c.append(ul);
+  c.append(el('p', 'doux petit', 'Change le nom du groupe d\'une partie ici si tu avais oublié de le renseigner avant de jouer.'));
+  z.append(c); return z;
+}
+
+function telecharge(nom, texte, type) {
+  const u = URL.createObjectURL(new Blob([texte], { type }));
+  const a = document.createElement('a'); a.href = u; a.download = nom; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 2000);
+}
+function csvCarnet() {
+  const titres = titresThemes(), ids = Object.keys(titres), sep = ';';
+  const lg = a => a.map(x => '"' + String(x == null ? '' : x).replace(/"/g, '""') + '"').join(sep);
+  const rows = [lg(['Date', 'Groupe', 'Prénom', 'Score', 'Bonnes réponses', 'Questions posées', 'Réussite %'].concat(ids.map(id => titres[id].titre + ' (justes / posées)')))];
+  C.parties.slice().sort((a, b) => a.t - b.t).forEach(p => p.eleves.forEach(e => rows.push(lg([new Date(p.t).toLocaleString('fr-FR'), p.groupe || '', e.nom, e.score, e.bonnes, posees(e), pct(e)].concat(ids.map(id => { const s = (e.parTheme || {})[id]; return s ? s.ok + ' / ' + s.n : ''; }))))));
+  return '﻿' + rows.join('\r\n');
+}
+function donnees(vide) {
+  const z = el('div', 'centre'); z.style.maxWidth = 'none'; z.style.width = '100%'; z.style.margin = '0';
+  const c = el('div', 'carte');
+  c.innerHTML = '<h2 style="margin-bottom:8px">Sauvegarde et gestion</h2><p class="doux">Le carnet est gardé dans <b>ce navigateur, sur cet ordinateur</b> (adresse : ' + esc(location.host) + '). Si tu vides les données du navigateur, il disparaît : télécharge une sauvegarde de temps en temps.</p>';
+  const l = el('div', 'ligne-ctrl'); l.style.justifyContent = 'flex-start'; l.style.marginTop = '14px';
+  if (!vide) {
+    const b1 = el('button', 'btn', 'Sauvegarde du carnet (.json)'); b1.onclick = () => telecharge('carnet-port-clair-' + new Date().toISOString().slice(0, 10) + '.json', JSON.stringify(C), 'application/json');
+    const b2 = el('button', 'btn', 'Tableur (.csv)'); b2.onclick = () => telecharge('carnet-port-clair.csv', csvCarnet(), 'text/csv;charset=utf-8');
+    l.append(b1, b2);
+  }
+  const f = document.createElement('input'); f.type = 'file'; f.accept = '.json,application/json'; f.hidden = true;
+  const b3 = el('button', 'btn sec', 'Importer une sauvegarde'); b3.onclick = () => f.click();
+  f.onchange = async () => {
+    try {
+      const j = JSON.parse(await f.files[0].text());
+      if (!j || !Array.isArray(j.parties)) throw new Error('format');
+      const ids = new Set(C.parties.map(p => p.id)); let n = 0;
+      j.parties.forEach(p => { if (p && p.id && Array.isArray(p.eleves) && !ids.has(p.id)) { C.parties.push(p); ids.add(p.id); n++; } });
+      garde(); msg = '✔ ' + n + ' partie' + (n > 1 ? 's' : '') + ' importée' + (n > 1 ? 's' : '') + '.'; rends();
+    } catch (e) { msg = '⚠️ Ce fichier n\'est pas une sauvegarde du carnet.'; rends(); }
+  };
+  l.append(b3, f);
+  c.append(l); z.append(c);
+  if (vide) return z;
+  const r = el('div', 'carte');
+  r.innerHTML = '<h2 style="margin-bottom:8px">Corriger ou fusionner un prénom</h2><p class="doux">Si un élève s\'est écrit de deux façons (« Amir » et « Amir2 »), ou pour corriger une faute : toutes ses parties passent sous le nouveau prénom.</p>';
+  const noms = [...new Set(C.parties.flatMap(p => p.eleves.map(e => e.nom)))].sort((a, b) => a.localeCompare(b, 'fr'));
+  const s = document.createElement('select'); s.className = 'court'; s.innerHTML = noms.map(n => '<option>' + esc(n) + '</option>').join(''); s.setAttribute('aria-label', 'Prénom à changer');
+  const i = document.createElement('input'); i.className = 'court'; i.placeholder = 'nouveau prénom'; i.maxLength = 24; i.setAttribute('aria-label', 'Nouveau prénom');
+  const ok = el('button', 'petit-btn', 'Renommer / fusionner');
+  ok.onclick = () => {
+    const nv = i.value.trim(); if (!nv) return;
+    C.parties.forEach(p => p.eleves.forEach(e => { if (e.nom === s.value) e.nom = nv; }));
+    garde(); msg = '✔ « ' + s.value + ' » est maintenant « ' + nv + ' ».'; rends();
+  };
+  const w = el('div', 'ligne-ctrl'); w.style.justifyContent = 'flex-start'; w.style.marginTop = '12px'; w.append(s, i, ok); r.append(w); z.append(r);
+  const e = el('div', 'carte');
+  e.innerHTML = '<h2 style="margin-bottom:8px">Tout effacer</h2><p class="doux">Supprime définitivement le carnet de ce navigateur (pense à télécharger la sauvegarde avant).</p>';
+  const x = el('button', 'petit-btn danger', 'Effacer tout le carnet'); x.style.marginTop = '12px';
+  x.onclick = () => { if (x.dataset.ok) { C = { version: 1, parties: [] }; garde(); vue = 'classe'; rends(); return; } x.dataset.ok = '1'; x.textContent = 'Cliquer encore pour confirmer'; setTimeout(() => { delete x.dataset.ok; x.textContent = 'Effacer tout le carnet'; }, 4000); };
+  e.append(x); z.append(e);
+  return z;
+}
+
+rends();
+</script>
+</body>
+</html>

@@ -10,7 +10,7 @@
 <main id="app" class="large" aria-live="polite"></main>
 <script src="commun.js"></script>
 <script>
-const CLE = 'pc-prof';
+const CLE = 'pc-prof', CARNET = 'pc-carnet', GROUPE = 'pc-groupe';
 let P = null, es = null, info = null, dernier = null, stopTemps = null, affiche = '';
 let reglages = { themes: ['famille', 'logement', 'aliments', 'restaurant'], total: 20, mode: 'solo', nbEq: 5, mult: 1, vitesse: true, auto: false, ordre: 'melange' };
 const app = $('#app');
@@ -21,6 +21,25 @@ function charge() { try { return JSON.parse(localStorage.getItem(CLE) || 'null')
 function garde() { try { localStorage.setItem(CLE, JSON.stringify(P)); } catch (e) { /* */ } }
 function oublie() { try { localStorage.removeItem(CLE); } catch (e) { /* */ } P = null; }
 const act = (action, extra) => api('/api/prof', Object.assign({ code: P.code, token: P.token, action }, extra || {}));
+
+/* ---------- carnet de suivi (gardé dans CE navigateur) ---------- */
+function carnet() { try { const c = JSON.parse(localStorage.getItem(CARNET) || 'null'); if (c && Array.isArray(c.parties)) return c; } catch (e) { /* */ } return { version: 1, parties: [] }; }
+function groupeActuel() { try { return localStorage.getItem(GROUPE) || ''; } catch (e) { return ''; } }
+function enregistreCarnet(e) {
+  const vrais = e.detail.filter(d => !d.bot && d.rep > 0);
+  if (!vrais.length) return { n: 0, essai: e.detail.length > 0 };
+  const c = carnet();
+  const signature = e.code + '|' + vrais.map(d => d.nom + ':' + d.score).join(',');
+  if (c.parties.some(p => p.signature === signature && Date.now() - p.t < 3600 * 1000)) return { n: vrais.length, deja: true };
+  const titres = {}; e.themes.forEach(t => { const i = info.themes.find(x => x.id === t.id); titres[t.id] = { titre: t.titre, emoji: i ? i.emoji : '' }; });
+  c.parties.push({
+    id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), t: Date.now(), signature, groupe: groupeActuel(),
+    mode: e.mode, themes: e.themes.map(t => t.id), titres,
+    eleves: vrais.map(d => ({ nom: d.nom, score: d.score, bonnes: d.bonnes, rep: d.rep, parTheme: d.parTheme }))
+  });
+  try { localStorage.setItem(CARNET, JSON.stringify(c)); } catch (x) { return { n: 0, erreur: true }; }
+  return { n: vrais.length };
+}
 
 /* ---------- réglages (création et salle d'attente) ---------- */
 function formReglages(surChange) {
@@ -73,6 +92,11 @@ async function vueCreation() {
   app.append(el('div', 'entete', marque()));
   app.append(el('h1', null, 'Nouvelle partie'));
   app.append(formReglages(() => { }));
+  const gr = el('div', 'carte');
+  gr.innerHTML = '<div class="champ"><label for="groupe">Classe ou groupe (facultatif, pour le carnet de suivi)</label><input id="groupe" type="text" maxlength="30" placeholder="ex. 6e B, UPE2A matin" value="' + esc(groupeActuel()) + '"></div>' +
+    '<p class="doux petit" style="margin-top:8px">Les résultats de chaque partie sont enregistrés dans ce navigateur. <a href="/suivi" style="color:var(--ambre)">📊 Ouvrir le carnet de suivi</a></p>';
+  gr.querySelector('#groupe').oninput = ev => { try { localStorage.setItem(GROUPE, ev.target.value.trim()); } catch (x) { /* */ } };
+  app.append(gr);
   const m = el('p', 'erreur'); m.id = 'err';
   const b = el('button', 'btn gros', 'Créer la partie');
   b.onclick = async () => {
@@ -89,8 +113,11 @@ function ouvre() {
 }
 
 /* ---------- affichage selon l'état ---------- */
+let etatPrec = '';
 function rends(e) {
+  const avant = etatPrec; etatPrec = e.etat;
   dernier = e;
+  if (e.etat === 'fin' && avant !== 'fin') window.__carnet = enregistreCarnet(e);
   if (e.reglages) Object.assign(reglages, { themes: e.reglages.themes, total: e.reglages.total, mode: e.reglages.mode, nbEq: e.reglages.nbEq, mult: e.reglages.mult, vitesse: e.reglages.vitesse, auto: e.reglages.auto, ordre: e.reglages.ordre });
   if (e.etat === 'lobby') return vueSalle(e);
   if (e.etat === 'question') {
@@ -244,6 +271,13 @@ function vueFin(e) {
   app.innerHTML = '';
   app.append(el('div', 'entete', marque()));
   app.append(el('h1', null, 'Partie terminée !'));
+  const cr = window.__carnet;
+  if (cr) {
+    const msg = cr.erreur ? '⚠️ Impossible d\'enregistrer dans le carnet (navigateur en navigation privée ?). Télécharge le tableur ci-dessous.'
+      : cr.n ? '✔ ' + cr.n + ' élève' + (cr.n > 1 ? 's' : '') + ' enregistré' + (cr.n > 1 ? 's' : '') + ' dans le carnet de suivi.'
+      : (cr.essai ? 'Partie d\'essai (élèves virtuels) : non enregistrée dans le carnet.' : 'Aucune réponse : partie non enregistrée.');
+    app.append(el('p', 'carte', msg + (cr.n ? ' <a href="/suivi" style="color:var(--ambre);font-weight:800">📊 Voir le suivi</a>' : '')));
+  }
   const top = e.mode === 'equipes' ? e.classementEq.slice(0, 3).map(x => ({ nom: 'Équipe ' + x.nom, score: x.score, hex: x.hex })) : e.joueurs.slice(0, 3).map(j => ({ nom: j.nom, score: j.score, av: j.av }));
   const ordre = [1, 0, 2].filter(i => top[i]);
   const pod = el('div', 'podium');
@@ -266,7 +300,8 @@ function vueFin(e) {
   };
   const re = el('button', 'btn', 'Rejouer avec les mêmes élèves'); re.onclick = () => act('rejouer');
   const nv = el('button', 'btn sec', 'Nouvelle partie (nouveau code)'); nv.onclick = () => { if (es) es.close(); oublie(); vueCreation(); };
-  const c = el('div', 'ligne-ctrl'); c.append(re, dl, nv); app.append(c);
+  const sv = el('a', 'btn sec', '📊 Carnet de suivi'); sv.href = '/suivi'; sv.style.textAlign = 'center'; sv.style.textDecoration = 'none';
+  const c = el('div', 'ligne-ctrl'); c.append(re, dl, sv, nv); app.append(c);
   window.scrollTo(0, 0);
 }
 
