@@ -9,7 +9,8 @@ const B = require('./banque.js');
 
 const PORT = +process.env.PORT || 8080;
 const PUB = fs.existsSync(path.join(__dirname, 'public', 'eleve.html')) ? path.join(__dirname, 'public') : __dirname; // tolère les fichiers mis à plat
-const PRIVES = new Set(['serveur.js', 'banque.js', 'themes2.js', 'package.json', 'render.yaml', 'download']);
+const CAPA = {}; const capa = id => (CAPA[id] = CAPA[id] || B.capacite(id));
+const PRIVES = new Set(['serveur.js', 'banque.js', 'themes2.js', 'themes3.js', 'package.json', 'render.yaml', 'download']);
 const parties = new Map();
 
 const COULEURS_EQ = [
@@ -322,7 +323,7 @@ const serveur = http.createServer(async (req, res) => {
       if (p === '/prof') return fichier(res, 'prof.html');
       if (p === '/api/info') return json(res, 200, {
         port: PORT, adresses: adresses(),
-        themes: B.ORDRE.map(id => ({ id, titre: B.THEMES[id].titre, emoji: B.THEMES[id].emoji, n: 50 }))
+        themes: B.ORDRE.map(id => ({ id, titre: B.THEMES[id].titre, emoji: B.THEMES[id].emoji, n: capa(id) }))
       });
       if (p === '/api/flux') return flux(req, res, url);
       if (p.startsWith('/') && p.length > 1 && !p.slice(1).includes('/')) return fichier(res, p.slice(1));

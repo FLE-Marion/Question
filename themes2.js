@@ -286,6 +286,16 @@ const conf = {
 /* emojis récents : risque de « carré vide » sur de vieilles tablettes → jamais utilisés comme images */
 const risque = ["🪑","🪟","🩳","🩱","🧑‍🍳","🧄","🧅","🧈","🧃","🩰","🪁","🪀","🛕","🛻","🪙","🟢","🔴"];
 
+/* emojis qui montrent plusieurs choses ou autre chose que le mot : jamais utilisés comme image.
+   (🍽️ assiette+couverts, 🍴 fourchette+couteau, 🛋️ canapé+lampe, 🍳 œuf dans la poêle, 🍲/🥣 plat + cuillère,
+    🏖️ plage+parasol, 🏝️ île+palmier, 🍝 pâtes+fourchette, 🧮 abaque ≠ calculatrice, 🗄️ ≠ casier…) */
+const trompeur = ["🍽️","🍴","🛋️","🍳","🍲","🥣","🍾","🥤","🏖️","🏝️","🍝","🧮","🗄️","🔄","🚩","🏁","🏛️","🛂","🏪","💵","💰","📚","🎂","🎤","👨‍💼","🗂️","🎩","🛁","🏊","🚴"];
+
 const ordre = ["cuisine","loisirs","achats","transports","chemin","vacances"];
 
-module.exports = { themes, conf, risque, ordre };
+const T3 = require("./themes3.js");
+Object.assign(themes, T3.themes);
+Object.assign(conf, T3.conf);
+ordre.push(...T3.ordre);
+
+module.exports = { themes, conf, risque, trompeur, ordre };

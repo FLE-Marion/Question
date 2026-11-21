@@ -427,75 +427,113 @@ function autresV(V, v, n, conf) {
 }
 const TEMPS = { imgmot: 15, motimg: 15, ecrire: 40, phrase: 25, ordre: 0, ecoute: 25, vf: 15, situation: 30 };
 
+/* Emojis qui montrent PLUS que le mot (couverts + assiette, canapé + lampe, œuf dans la poêle…) :
+   on ne les utilise jamais comme image, le mot reste en phrase ou en écoute. */
+const TROMPEUR = new Set(PLUS.trompeur);
+const imageOk = e => !!e && !RISQUE.has(e) && !TROMPEUR.has(e);
+
+/* Toutes les questions possibles d'un thème (la partie en tire un sous-ensemble sans répétition). */
 function construireTheme(id) {
-  const T = THEMES[id], V = T.V, out = [];
-  const [nIm, nMi, nEc, nEo] = T.auto;
-  const conf = T.conf || [];
-  const Vimg = V.filter(w => !RISQUE.has(w[1]));          // mots qu'on peut montrer en image
-  const v = melange(V), vi = melange(Vimg);
-  let k = 0, ki = 0;
-  const prends = n => { const r = []; for (let i = 0; i < n; i++) r.push(v[(k++) % v.length]); return r; };
-  const prendsImg = n => { const r = []; for (let i = 0; i < n; i++) r.push(vi[(ki++) % vi.length]); return r; };
+  const T = THEMES[id], V = T.V, out = [], conf = T.conf || [];
+  const Vimg = V.filter(w => imageOk(w[1]));
   const base = (type, extra) => Object.assign({ theme: id, type, consigne: LIBELLES[type], temps: TEMPS[type] }, extra);
+  const cle = (q, k) => { q.cle = k; return q; };
+  const mot = w => "w:" + sansArt(w[0]);
 
-  prendsImg(nIm).forEach(w => out.push(qcm(
-    base("imgmot", { emoji: w[1], consigne: T.verbes ? "Quelle est cette action ?" : "Quel est ce mot ?" }),
-    { t: w[0] }, autresV(Vimg, w, 3, conf).map(x => ({ t: x[0] })))));
-  out.forEach(q => { q.bonneTxt = q.options[q.bonne].t; });
-
-  prendsImg(nMi).forEach(w => {
+  Vimg.forEach(w => {
+    out.push(cle(qcm(base("imgmot", { emoji: w[1], consigne: T.verbes ? "Quelle est cette action ?" : "Quel est ce mot ?" }),
+      { t: w[0] }, autresV(Vimg, w, 3, conf).map(x => ({ t: x[0] }))), mot(w)));
     const q = qcm(base("motimg", { texte: w[0], consigne: "Touche la bonne image." }),
       { e: w[1] }, autresV(Vimg, w, 3, conf).map(x => ({ e: x[1] })));
-    q.bonneTxt = w[1]; out.push(q);
+    q.bonneTxt = w[1]; out.push(cle(q, mot(w)));
+    out.push(cle(base("ecrire", { emoji: w[1], consigne: T.verbes ? "Écris le verbe." : "Écris le mot en français.", acceptes: variantes(w), affiche: w[0], motif: motif(w[0]) }), mot(w)));
   });
+  out.forEach(q => { if (q.type === "imgmot") q.bonneTxt = q.options[q.bonne].t; });
 
-  prendsImg(nEc).forEach(w => {
-    const acc = variantes(w);
-    out.push(base("ecrire", { emoji: w[1], consigne: T.verbes ? "Écris le verbe." : "Écris le mot en français.", acceptes: acc, affiche: w[0], motif: motif(w[0]) }));
-  });
-
-  prends(nEo).forEach(w => {
+  V.forEach(w => {
     const q = qcm(base("ecoute", { parle: w[0], consigne: "Écoute, puis choisis le mot." }),
       { t: w[0] }, autresV(V, w, 3, conf).map(x => ({ t: x[0] })));
-    q.bonneTxt = w[0]; out.push(q);
+    q.bonneTxt = w[0]; out.push(cle(q, mot(w)));
   });
 
   T.P.forEach(p => {
     const q = qcm(base("phrase", { texte: p[0], consigne: "Complète la phrase." }), p[1], p[2]);
-    q.bonneTxt = p[1]; out.push(q);
+    q.bonneTxt = p[1]; q.opts = [p[1]].concat(p[2]); out.push(cle(q, "w:" + sansArt(p[1])));
   });
 
   T.E.forEach(e => {
     const acc = e[1].split("|");
-    out.push(base("ecrire", { texte: e[0], emoji: e[2] || "", consigne: "Écris le mot qui manque.", acceptes: acc, affiche: acc[0], motif: motif(acc[0]), temps: 45 }));
+    const q = base("ecrire", { texte: e[0], emoji: imageOk(e[2] || "") ? (e[2] || "") : "", consigne: "Écris le mot qui manque.", acceptes: acc, affiche: acc[0], motif: motif(acc[0]), temps: 45 });
+    out.push(cle(q, "w:" + sansArt(acc[0])));
   });
 
   T.O.forEach(o => {
     const mots = o.split(" ");
     let t = melange(mots), essais = 0;
     while (t.join(" ") === o && essais++ < 10) t = melange(mots);
-    out.push(base("ordre", { tuiles: t, ordreBon: mots, affiche: o, temps: 15 + 4 * mots.length }));
+    out.push(cle(base("ordre", { tuiles: t, ordreBon: mots, affiche: o, temps: 15 + 4 * mots.length }), "o:" + o));
   });
 
   T.L.forEach(l => {
     const q = qcm(base("ecoute", { parle: l[0], consigne: "Écoute, puis choisis la phrase." }), l[1][0], l[1].slice(1));
-    q.bonneTxt = l[1][0]; out.push(q);
+    q.bonneTxt = l[1][0]; out.push(cle(q, "s:" + net(l[1][0])));
   });
 
   T.F.forEach(f => {
-    out.push(base("vf", { texte: f[0], options: [{ t: "Vrai" }, { t: "Faux" }], bonne: f[1] ? 0 : 1, bonneTxt: f[1] ? "Vrai" : "Faux", expl: f[2] }));
+    out.push(cle(base("vf", { texte: f[0], options: [{ t: "Vrai" }, { t: "Faux" }], bonne: f[1] ? 0 : 1, bonneTxt: f[1] ? "Vrai" : "Faux", expl: f[2] }), "f:" + net(f[0])));
   });
 
   T.S.forEach(s => {
     const q = qcm(base("situation", { texte: s[0], consigne: "Que dis-tu ?" }), s[1][0], s[1].slice(1));
-    q.bonneTxt = s[1][0]; out.push(q);
+    q.bonneTxt = s[1][0]; out.push(cle(q, "s:" + net(s[1][0])));
   });
 
   out.forEach((q, i) => { q.id = id + "-" + i; q.themeTitre = T.titre; q.themeEmoji = T.emoji; });
   return out;
 }
 
-/* total questions réparties entre les thèmes ; types variés */
+/* Deux questions « se ressemblent » si : même réponse/mot, mêmes propositions (grammaire),
+   ou énoncés presque identiques. */
+const jetons = s => new Set(net(s).split(/[^a-zàâäéèêëîïôöùûüçœ0-9']+/).filter(Boolean));
+function jaccard(a, b) { let i = 0; a.forEach(x => { if (b.has(x)) i++; }); return i / (a.size + b.size - i || 1); }
+function texteDe(q) { return q.type === "ordre" ? q.affiche : (q.type === "ecoute" ? q.parle : (q.texte || "")); }
+function ressemblent(a, b) {
+  if (a.cle === b.cle) return true;
+  if (a.theme !== b.theme && a.cle[0] !== "w") return false;
+  if (a.opts && b.opts && jaccard(new Set(a.opts.map(net)), new Set(b.opts.map(net))) >= 0.5) return true;
+  const ta = a.type === "imgmot" || a.type === "motimg" || (a.type === "ecoute" && a.cle[0] === "w") ? "" : texteDe(a);
+  const tb = b.type === "imgmot" || b.type === "motimg" || (b.type === "ecoute" && b.cle[0] === "w") ? "" : texteDe(b);
+  if (ta.length > 12 && tb.length > 12 && jaccard(jetons(ta), jetons(tb)) >= 0.6) return true;
+  if (a.type === "ecrire" && b.type === "ecrire" && a.texte && b.texte && jaccard(jetons(a.texte), jetons(b.texte)) >= 0.5) return true;
+  return false;
+}
+
+/* tire n questions d'un thème, variées, sans doublons ni questions trop proches (contre « deja »). */
+function tirer(id, n, deja) {
+  const groupes = {};
+  melange(construireTheme(id)).forEach(q => (groupes[q.type] = groupes[q.type] || []).push(q));
+  const types = melange(Object.keys(groupes));
+  const pris = [], ok = q => !deja.some(d => ressemblent(d, q)) && !pris.some(d => ressemblent(d, q));
+  let encore = true;
+  while (pris.length < n && encore) {
+    encore = false;
+    for (const t of types) {
+      if (pris.length >= n) break;
+      const g = groupes[t];
+      while (g.length) { const q = g.pop(); if (ok(q)) { pris.push(q); encore = true; break; } }
+    }
+  }
+  return pris;
+}
+
+/* nombre de questions réellement différentes d'un thème */
+function capacite(id) {
+  let m = 0;
+  for (let i = 0; i < 6; i++) m = Math.max(m, tirer(id, 999, []).length);
+  return m;
+}
+
+/* total questions réparties entre les thèmes ; types variés ; pas de questions qui se ressemblent */
 function construire(themes, total, ordre) {
   themes = themes.filter(t => THEMES[t]);
   const part = Math.floor(total / themes.length);
@@ -503,15 +541,7 @@ function construire(themes, total, ordre) {
   let sel = [];
   themes.forEach(id => {
     const n = part + (reste-- > 0 ? 1 : 0);
-    const tout = construireTheme(id);
-    const groupes = {};
-    melange(tout).forEach(q => (groupes[q.type] = groupes[q.type] || []).push(q));
-    const types = melange(Object.keys(groupes));
-    const pris = [];
-    while (pris.length < n && types.some(t => groupes[t].length)) {
-      for (const t of types) { if (pris.length >= n) break; if (groupes[t].length) pris.push(groupes[t].pop()); }
-    }
-    sel = sel.concat(pris);
+    sel = sel.concat(tirer(id, n, sel));
   });
   if (ordre === "theme") {
     const par = {}; sel.forEach(q => (par[q.theme] = par[q.theme] || []).push(q));
@@ -529,4 +559,4 @@ function publique(q) {
   };
 }
 
-module.exports = { THEMES, ORDRE, LIBELLES, construire, construireTheme, publique, verifie, sansArt, melange };
+module.exports = { THEMES, ORDRE, LIBELLES, construire, construireTheme, tirer, capacite, publique, verifie, sansArt, melange };
