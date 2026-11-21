@@ -25,16 +25,16 @@ famille: { titre: "Ma famille", emoji: "👨‍👩‍👧‍👦", verbes: fals
     ["Voici mes frères. ___ mes frères.","Ce sont",["C'est","Il est","Elle est"]],
     ["C'est ma sœur. ___ s'appelle Eva.","Elle",["Il","Ils","Nous"]],
     ["Voici mes grands-parents. ___ habitent à Lyon.","Ils",["Il","Elle","Je"]],
-    ["Tu présentes ta famille : voici ___ sœur.","ta",["ton","tes","ma"]],
-    ["Lina présente Henri : « C'est ___ grand-père. »","mon",["ma","mes","son"]]
+    ["Tu présentes ta famille : voici ___ sœur.","ta",["ton","tes","mon"]],
+    ["Lina présente Henri : « C'est ___ grand-père. »","mon",["ma","mes","ton"]]
   ],
   E: [
     ["La mère de ma mère, c'est ma ___.","grand-mère|grand mère","👵"],
-    ["Le frère de mon père, c'est mon ___.","oncle","👨"],
-    ["La sœur de ma mère, c'est ma ___.","tante","👩"],
+    ["Le frère de mon père, c'est mon ___.","oncle"],
+    ["La sœur de ma mère, c'est ma ___.","tante"],
     ["Le père et la mère, ce sont les ___.","parents","👨‍👩‍👧"],
     ["Mes parents et leurs enfants : c'est la ___.","famille","👨‍👩‍👧‍👦"],
-    ["Le fils de mon oncle, c'est mon ___.","cousin","🧒"],
+    ["Le fils de mon oncle, c'est mon ___.","cousin"],
     ["Mon père a un père. C'est mon ___.","grand-père|grand père","👴"],
     ["Pour parler de ma mère, je dis : « ___ mère ». (mon / ma / mes)","ma"],
     ["Pour présenter plusieurs personnes, je dis : « ___ mes frères. » (C'est / Ce sont)","ce sont"],
@@ -69,7 +69,7 @@ logement: { titre: "Mon logement", emoji: "🏠", verbes: false, auto: [6, 4, 4,
   V: [["la maison","🏠"],["l'immeuble","🏢"],["la fenêtre","🪟"],["la porte","🚪"],["le lit","🛏️"],["la chaise","🪑"],["le canapé","🛋️"],["la télévision","📺","télé|la télé|tv"],["l'ordinateur","💻"],["le téléphone portable","📱","portable|téléphone|le portable"],["la clé","🔑","clef"],["la baignoire","🛁"],["la douche","🚿"],["les toilettes","🚽"],["le réveil","⏰"]],
   P: [
     ["J'habite dans un ___ avec mes parents.","appartement",["balcon","escalier","jardin"]],
-    ["Je dors dans mon ___.","lit",["canapé","bureau","tapis"]],
+    ["Je dors dans mon ___.","lit",["balcon","bureau","tapis"]],
     ["Le soir, je regarde la télévision dans le ___.","salon",["garage","grenier","toilettes"]],
     ["Je prépare le dîner dans la ___.","cuisine",["chambre","cave","entrée"]],
     ["Je prends une douche dans la ___.","salle de bains",["salle à manger","chambre","cuisine"]],
@@ -101,7 +101,7 @@ logement: { titre: "Mon logement", emoji: "🏠", verbes: false, auto: [6, 4, 4,
     ["Un balcon est dans le sol du jardin.",0,"Non : un balcon est une plateforme en hauteur, devant une fenêtre ou une porte."],
     ["Le salon est une pièce de la maison.",1,"Oui : le salon est une pièce, avec souvent un canapé et une télévision."]
   ],
-  O: ["Mon appartement est dans un immeuble.","Il y a un lit dans ma chambre.","Le canapé est dans le salon.","J'habite dans une grande maison.","La cuisine est à côté du salon."],
+  O: ["Mon appartement est dans un immeuble.","Il y a un lit dans ma chambre.","Il y a un canapé dans le salon.","J'habite dans une grande maison.","La cuisine est à côté du salon."],
   L: [
     ["J'habite dans un appartement.",["J'habite dans un appartement.","J'habite dans une maison.","Il habite dans un immeuble."]],
     ["Ma chambre est au premier étage.",["Ma chambre est au premier étage.","Ma cuisine est au premier étage.","Ma chambre est au rez-de-chaussée."]],
@@ -191,7 +191,7 @@ ville: { titre: "Dans ma ville", emoji: "🏙️", verbes: false, auto: [8, 6, 6
     ["Je vais ___ musée avec ma classe.","au",["à la","aux","à l'"]],
     ["Je vais ___ toilettes.","aux",["au","à la","à l'"]],
     ["J'achète du pain à la ___.","boulangerie",["pharmacie","banque","gare"]],
-    ["À la ___, j'emprunte un livre.","bibliothèque",["librairie","boucherie","piscine"]],
+    ["À la ___, j'emprunte un livre.","bibliothèque",["mairie","boucherie","piscine"]],
     ["Pour acheter des fleurs, je vais chez le ___.","fleuriste",["boucher","pharmacien","boulanger"]],
     ["Le train part de la ___.","gare",["poste","mairie","piscine"]],
     ["Je vais ___ hôpital.","à l'",["au","à la","aux"]]
@@ -243,7 +243,7 @@ vetements: { titre: "Les vêtements", emoji: "👕", verbes: false, auto: [7, 5,
   ],
   S: [
     ["Tu veux essayer un pantalon. Tu demandes :",["Est-ce que je peux essayer ce pantalon ?","Je peux essayé ce pantalon ?","Est-ce que je essaie ce pantalon ?"]],
-    ["Le pantalon est trop grand. Tu dis :",["C'est trop grand.","C'est trop petite.","C'est très petit."]],
+    ["Le pantalon est trop grand. Tu dis :",["C'est trop grand.","C'est trop grande.","Ce sont trop grand."]],
     ["Le vendeur demande : « Quelle est votre pointure ? » Tu réponds :",["Je fais du 36.","Je mets du M.","Je suis 36 ans."]],
     ["Tu demandes où sont les cabines d'essayage. Tu dis :",["Où sont les cabines d'essayage ?","Où est cabines d'essayage ?","Où sont les cabines de essai ?"]],
     ["Tu aimes la couleur rouge. Tu dis :",["Je préfère le rouge.","Je préfère la rouge.","Je préfère rouges."]],
@@ -352,7 +352,13 @@ materiel: { titre: "Le matériel de la classe", emoji: "🎒", verbes: false, au
 }
 };
 
-const ORDRE = ["famille","logement","aliments","restaurant","ville","vetements","consignes","materiel"];
+/* Thèmes ajoutés + groupes de mots/images à ne pas proposer ensemble (ambigus) + emojis récents
+   (risque de carré vide sur de vieilles tablettes : on ne les utilise pas comme images). */
+const PLUS = require("./themes2.js");
+Object.assign(THEMES, PLUS.themes);
+Object.keys(PLUS.conf).forEach(id => { if (THEMES[id]) THEMES[id].conf = (THEMES[id].conf || []).concat(PLUS.conf[id]); });
+const RISQUE = new Set(PLUS.risque);
+const ORDRE = ["famille","logement","aliments","restaurant","ville","vetements","consignes","materiel"].concat(PLUS.ordre);
 const LIBELLES = {
   imgmot: "Quel est ce mot ?", motimg: "Touche la bonne image.", ecrire: "Écris le mot.",
   phrase: "Complète la phrase.", ordre: "Remets les mots dans l'ordre.", ecoute: "Écoute, puis choisis.",
@@ -407,39 +413,50 @@ function qcm(base, bonne, fausses) {
   base.bonne = opts.indexOf(bonne);
   return base;
 }
-function autresV(V, v, n) {
-  const pool = V.filter(x => x[0] !== v[0] && x[1] !== v[1]);
-  return melange(pool).slice(0, n);
+function autresV(V, v, n, conf) {
+  const groupe = w => (conf || []).map((g, i) => g.indexOf(sansArt(w[0])) >= 0 ? i : -1).filter(i => i >= 0);
+  const interdit = new Set(groupe(v));
+  const pris = [], vus = new Set([v[1], sansArt(v[0])]);
+  for (const x of melange(V)) {
+    if (pris.length >= n) break;
+    if (x[0] === v[0] || vus.has(x[1]) || vus.has(sansArt(x[0]))) continue;
+    if (groupe(x).some(i => interdit.has(i))) continue;
+    pris.push(x); vus.add(x[1]); vus.add(sansArt(x[0])); groupe(x).forEach(i => interdit.add(i));
+  }
+  return pris;
 }
 const TEMPS = { imgmot: 15, motimg: 15, ecrire: 40, phrase: 25, ordre: 0, ecoute: 25, vf: 15, situation: 30 };
 
 function construireTheme(id) {
   const T = THEMES[id], V = T.V, out = [];
   const [nIm, nMi, nEc, nEo] = T.auto;
-  const v = melange(V);
-  let k = 0;
+  const conf = T.conf || [];
+  const Vimg = V.filter(w => !RISQUE.has(w[1]));          // mots qu'on peut montrer en image
+  const v = melange(V), vi = melange(Vimg);
+  let k = 0, ki = 0;
   const prends = n => { const r = []; for (let i = 0; i < n; i++) r.push(v[(k++) % v.length]); return r; };
+  const prendsImg = n => { const r = []; for (let i = 0; i < n; i++) r.push(vi[(ki++) % vi.length]); return r; };
   const base = (type, extra) => Object.assign({ theme: id, type, consigne: LIBELLES[type], temps: TEMPS[type] }, extra);
 
-  prends(nIm).forEach(w => out.push(qcm(
+  prendsImg(nIm).forEach(w => out.push(qcm(
     base("imgmot", { emoji: w[1], consigne: T.verbes ? "Quelle est cette action ?" : "Quel est ce mot ?" }),
-    { t: w[0] }, autresV(V, w, 3).map(x => ({ t: x[0] })))));
+    { t: w[0] }, autresV(Vimg, w, 3, conf).map(x => ({ t: x[0] })))));
   out.forEach(q => { q.bonneTxt = q.options[q.bonne].t; });
 
-  prends(nMi).forEach(w => {
+  prendsImg(nMi).forEach(w => {
     const q = qcm(base("motimg", { texte: w[0], consigne: "Touche la bonne image." }),
-      { e: w[1] }, autresV(V, w, 3).map(x => ({ e: x[1] })));
+      { e: w[1] }, autresV(Vimg, w, 3, conf).map(x => ({ e: x[1] })));
     q.bonneTxt = w[1]; out.push(q);
   });
 
-  prends(nEc).forEach(w => {
+  prendsImg(nEc).forEach(w => {
     const acc = variantes(w);
     out.push(base("ecrire", { emoji: w[1], consigne: T.verbes ? "Écris le verbe." : "Écris le mot en français.", acceptes: acc, affiche: w[0], motif: motif(w[0]) }));
   });
 
   prends(nEo).forEach(w => {
     const q = qcm(base("ecoute", { parle: w[0], consigne: "Écoute, puis choisis le mot." }),
-      { t: w[0] }, autresV(V, w, 3).map(x => ({ t: x[0] })));
+      { t: w[0] }, autresV(V, w, 3, conf).map(x => ({ t: x[0] })));
     q.bonneTxt = w[0]; out.push(q);
   });
 

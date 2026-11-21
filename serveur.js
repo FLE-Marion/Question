@@ -9,7 +9,7 @@ const B = require('./banque.js');
 
 const PORT = +process.env.PORT || 8080;
 const PUB = fs.existsSync(path.join(__dirname, 'public', 'eleve.html')) ? path.join(__dirname, 'public') : __dirname; // tolère les fichiers mis à plat
-const PRIVES = new Set(['serveur.js', 'banque.js', 'package.json', 'render.yaml', 'download']);
+const PRIVES = new Set(['serveur.js', 'banque.js', 'themes2.js', 'package.json', 'render.yaml', 'download']);
 const parties = new Map();
 
 const COULEURS_EQ = [
