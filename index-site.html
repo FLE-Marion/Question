@@ -1,0 +1,1290 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; media-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="Port-Clair : un jeu gratuit pour apprendre le français en enquêtant. Traductions en 16 langues, sans publicité, sans compte.">
+<meta name="theme-color" content="#1c1326">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232a1c3a'/%3E%3Ctext x='32' y='44' font-size='34' text-anchor='middle' fill='%23f3a85c' font-family='sans-serif' font-weight='800'%3E112%3C/text%3E%3C/svg%3E">
+<style>[hidden]{display:none!important}html{color-scheme:dark}body{margin:0}.pied{text-align:center;font-size:.85rem;margin:18px 0 6px}.pied a{color:var(--sourdine)}</style>
+<title>Port-Clair · Le casier 112</title>
+<style>
+/* Layout : une seule colonne de téléphone, centrée ; en haut l'état de la partie,
+   au milieu l'image du lieu et la scène, en bas les actions. Un seul univers visuel
+   (soir prune), tiré du portrait de la professeure : lilas de la blouse, ambre des lunettes. */
+:root{
+  color-scheme:dark;
+  --nuit:#1c1326; --prune:#2a1c3a; --prune-2:#3b2a50; --trait:#52406b;
+  --lilas:#b99de3; --ambre:#f3a85c; --creme:#f7ede0; --sourdine:#b5a6c6;
+  --ok:#72d6a3; --non:#ff8f7c; --papier:#f4ead6; --encre:#2b2233;
+  --titre:"Bricolage Grotesque","Trebuchet MS",system-ui,sans-serif;
+  --texte:"Atkinson Hyperlegible","Segoe UI",system-ui,sans-serif;
+}
+html,body{height:100%}
+body{background:var(--nuit);color:var(--creme);font-family:var(--texte);font-size:17px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+*{box-sizing:border-box}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--ambre);outline-offset:2px}
+.app{max-width:480px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;gap:16px;padding-block:16px}
+
+/* Menu principal */
+.accueil{display:flex;flex-direction:column;gap:18px}
+.affiche{position:relative;border-radius:28px 28px 28px 6px;overflow:hidden;background:var(--prune)}
+.affiche img{display:block;width:100%;aspect-ratio:16/10;object-fit:cover;object-position:50% 20%}
+.affiche .bandeau{position:absolute;left:0;right:0;bottom:0;padding:48px 18px 14px;
+  background:linear-gradient(to top,var(--nuit) 12%,transparent)}
+.sur{font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ambre);font-weight:700;margin:0}
+h1{font-family:var(--titre);font-weight:800;font-size:clamp(2.2rem,10vw,3rem);line-height:1;margin:.15em 0 0;text-wrap:balance}
+.pitch{margin:0;color:var(--sourdine)}
+.note{margin:0;color:var(--ok);font-size:.92rem}
+.champ{display:flex;flex-direction:column;gap:8px}
+.champ label,.champ .etq{font-weight:700;font-size:.95rem}
+.champ input{background:var(--prune);border:2px solid var(--trait);border-radius:14px;padding:12px 14px;width:100%}
+.langues{position:relative}
+.langue-bouton{width:100%;display:flex;align-items:center;gap:10px;background:var(--prune);border:2px solid var(--trait);border-radius:14px;padding:11px 14px;text-align:left;font-weight:700}
+.langue-bouton[aria-expanded="true"]{border-color:var(--lilas)}
+.langue-bouton .fl{font-size:1.5rem;line-height:1}
+.langue-bouton .nom{flex:1;min-width:0}
+.langue-bouton .fleche{color:var(--lilas);transition:transform .15s}
+.langue-bouton[aria-expanded="true"] .fleche{transform:rotate(180deg)}
+.langue-liste{position:absolute;z-index:15;left:0;right:0;top:calc(100% + 6px);margin:0;padding:6px;list-style:none;background:var(--nuit);border:2px solid var(--lilas);border-radius:14px;max-height:min(52vh,380px);overflow:auto;box-shadow:0 12px 30px #0008}
+.langue{display:flex;align-items:center;gap:12px;width:100%;padding:10px 10px;border-radius:10px;text-align:left;background:transparent;border:0;color:var(--creme);font:inherit}
+.langue .fl{font-size:1.5rem;line-height:1}
+.langue:hover,.langue:focus-visible{background:var(--prune-2)}
+.langue[aria-selected="true"]{background:var(--lilas);color:var(--nuit);font-weight:700}
+.episodes{display:flex;flex-direction:column;gap:12px}
+.episode{background:var(--prune);border:2px solid var(--trait);border-radius:20px 20px 20px 6px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.episode h2{font-family:var(--titre);font-weight:800;font-size:1.35rem;margin:0;line-height:1.15}
+.episode p{margin:0;color:var(--sourdine);font-size:.95rem}
+.episode .statut{color:var(--creme);font-variant-numeric:tabular-nums}
+.episode .statut b{color:var(--ambre)}
+
+.btn{background:var(--ambre);color:var(--nuit);border:0;border-radius:16px;padding:14px 18px;font-family:var(--titre);
+  font-weight:800;font-size:1.1rem;width:100%;box-shadow:0 4px 0 #b9712c}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 #b9712c}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.doux{background:var(--prune-2);color:var(--creme);box-shadow:0 4px 0 var(--nuit);border:2px solid var(--trait)}
+
+/* Barre du haut */
+.haut{display:flex;flex-direction:column;gap:10px}
+.haut .ligne{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.lieu{font-family:var(--titre);font-weight:800;font-size:1.1rem;flex:1 1 120px;min-width:0;line-height:1.2}
+.lieu small{display:block;font-family:var(--texte);font-weight:400;font-size:.8rem;color:var(--sourdine)}
+.pastille{background:var(--prune);border:2px solid var(--trait);border-radius:999px;padding:6px 12px;font-size:.9rem;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.pastille b{color:var(--ambre)}
+.pastille.menu{border-color:var(--lilas);color:var(--lilas);font-weight:700}
+.jauge{height:8px;border-radius:99px;background:var(--prune);overflow:hidden}
+.jauge i{display:block;height:100%;width:0;background:var(--lilas);border-radius:99px;transition:width .4s}
+
+/* Scène */
+.scene{flex:1;display:flex;flex-direction:column;gap:14px}
+.image{border-radius:22px 22px 22px 6px;overflow:hidden;border:3px solid var(--prune-2);background:var(--prune)}
+.image svg{display:block;width:100%;height:auto}
+.picto{display:flex;justify-content:center}
+.picto svg{width:230px;height:auto;display:block}
+.qui{display:flex;align-items:center;gap:10px}
+.avatar{width:58px;height:58px;border-radius:50%;flex:none;display:grid;place-items:center;font-family:var(--titre);
+  font-weight:800;font-size:1.4rem;color:var(--nuit);background:var(--lilas);overflow:hidden;border:3px solid var(--prune-2)}
+.avatar img{width:100%;height:100%;object-fit:cover;object-position:50% 18%;transform:scale(1.55);transform-origin:50% 30%}
+.avatar img.photo{transform:none;object-position:50% 50%}
+.avatar.parle{border-color:var(--ambre);animation:parle 1.1s ease-in-out infinite}
+@keyframes parle{50%{box-shadow:0 0 0 7px color-mix(in srgb,var(--ambre) 28%,transparent)}}
+.qui .nom{font-family:var(--titre);font-weight:800}
+.qui .role{font-size:.8rem;color:var(--sourdine);display:block;font-family:var(--texte);font-weight:400}
+.bulle{background:var(--prune);border-radius:6px 22px 22px 22px;padding:16px 18px;margin:0;font-size:1.12rem;animation:entre .3s ease-out}
+.bulle.recit{background:none;border-left:3px solid var(--trait);border-radius:0;font-style:italic;color:var(--sourdine);padding:4px 0 4px 14px}
+@keyframes entre{from{transform:translateY(6px);opacity:.4}}
+.mot{background:none;border:0;padding:0;border-bottom:2px dotted var(--ambre);color:var(--ambre);font-weight:700}
+.outils{display:flex;gap:8px;flex-wrap:wrap}
+.outil{background:none;border:2px solid var(--trait);border-radius:999px;padding:5px 12px;font-size:.88rem;color:var(--sourdine)}
+.trad{margin:0;padding:10px 14px;border-radius:14px;background:var(--prune-2);color:var(--creme);font-size:1rem}
+.tiroir{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--prune-2);border-radius:14px;padding:10px 14px}
+.tiroir .fr{font-weight:700;color:var(--ambre)}
+.tiroir .vers{font-size:1.1rem}
+.tiroir .neuf{margin-left:auto;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ok);font-weight:700}
+.billet{background:var(--papier);color:var(--encre);padding:20px 18px;border-radius:4px;transform:rotate(-1.2deg);
+  font-size:1.15rem;margin:6px 4px;box-shadow:0 10px 24px #0007}
+.billet .mot{color:#8a4b12;border-color:#8a4b12}
+.billet .signe{display:block;text-align:right;margin-top:8px;font-style:italic}
+.actions{display:flex;flex-direction:column;gap:10px;margin-top:auto;padding-top:6px}
+.choix{background:var(--prune);border:2px solid var(--trait);border-radius:16px;padding:13px 15px;text-align:left;width:100%}
+.choix.bon{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 16%,var(--prune))}
+.choix.faux{border-color:var(--non);opacity:.6}
+.retour{display:flex;gap:10px;align-items:flex-start;background:var(--prune-2);border-radius:16px;padding:12px}
+.retour .avatar{width:42px;height:42px;border-width:2px}
+.retour p{margin:0;font-size:1rem}
+.retour.ok{box-shadow:inset 4px 0 var(--ok)} .retour.non{box-shadow:inset 4px 0 var(--non)}
+
+/* Mini-jeux */
+.jeu-titre{font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:var(--lilas);font-weight:700;margin:0}
+.rang{display:flex;flex-wrap:wrap;gap:8px;min-height:54px;padding:10px;border-radius:16px;border:2px dashed var(--trait);align-content:flex-start}
+.rang.reserve{border-style:solid;border-color:transparent;background:var(--prune)}
+.jeton{background:var(--prune-2);border:2px solid var(--trait);border-radius:12px;padding:8px 13px;font-weight:700}
+.rang.rep .jeton{background:var(--lilas);color:var(--nuit);border-color:var(--lilas)}
+.rang.rep .jeton.bon{background:var(--ok);border-color:var(--ok)}
+.rang.rep .jeton.mal{background:var(--non);border-color:var(--non)}
+.erreurs{display:flex;flex-direction:column;gap:10px;margin:6px 0}
+.erreurs h3{font-family:var(--titre);font-size:1.05rem;margin:4px 0 0;color:var(--ambre)}
+.erreur{background:var(--prune);border:2px solid var(--trait);border-left:6px solid var(--non);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.erreur p{margin:0}
+.erreur .corrige{font-family:var(--titre);font-weight:800;font-size:1.2rem}
+.erreur .corrige b{color:var(--ok)}
+.erreur .tienne{color:var(--sourdine);font-size:.95rem}
+.erreur .tienne s{color:var(--non)}
+.erreur .duo{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.erreur .duo p{border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;gap:2px;font-size:1.15rem;font-family:var(--titre)}
+.erreur .duo .oui{background:rgba(110,200,140,.16);border:2px solid var(--ok)}
+.erreur .duo .non{background:rgba(230,100,100,.14);border:2px solid var(--non)}
+.erreur .duo .vs{font-family:var(--texte);font-size:.75rem;font-weight:600;color:var(--sourdine)}
+.erreur .duo b{color:var(--ok)}
+.erreur .duo s{color:var(--non)}
+.erreur .trad p{margin:0 0 4px}
+.retour .corps{display:flex;flex-direction:column;gap:8px;min-width:0;flex:1}
+.erreur .expl{font-size:.97rem;line-height:1.4}
+.secoue{animation:secoue .35s}
+@keyframes secoue{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.ecoute{display:flex;gap:10px;flex-wrap:wrap}
+.ecoute .btn{flex:1 1 180px}
+.options{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.options.longues{grid-template-columns:1fr}
+.options .choix{text-align:center;font-family:var(--titre);font-weight:800;font-size:1.15rem;font-variant-numeric:tabular-nums;padding:14px 6px}
+.phrase{font-family:var(--titre);font-weight:800;font-size:1.5rem;text-align:center;margin:8px 0;text-wrap:balance}
+.phrase u{text-decoration:none;display:inline-block;min-width:3.2em;border-bottom:4px solid var(--ambre);color:var(--ambre)}
+.chrono{height:10px;border-radius:99px;background:var(--prune);overflow:hidden}
+.chrono i{display:block;height:100%;width:100%;background:var(--ambre);transform-origin:left}
+.serie{text-align:center;color:var(--sourdine);font-variant-numeric:tabular-nums;margin:0}
+.serie b{color:var(--ambre)}
+.etoiles{font-family:var(--titre);font-weight:800;font-size:2.4rem;text-align:center;color:var(--ambre);letter-spacing:.12em;margin:0}
+.etoiles s{text-decoration:none;color:var(--trait)}
+
+/* Cartes */
+.voile{position:fixed;inset:0;background:#120c19e6;display:flex;justify-content:center;z-index:20;overflow:auto;
+  padding:calc(16px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.album{max-width:480px;width:100%;display:flex;flex-direction:column;gap:14px}
+.album h2{font-family:var(--titre);font-weight:800;margin:0;font-size:1.6rem}
+.grille{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.carte .ci{display:block;font-style:normal;font-size:2.6rem;line-height:1.2;margin-bottom:4px}
+.carte .cc{width:42px;height:42px;border-radius:12px;border:2px solid var(--creme)}
+.carte .ci u,.gi u{text-decoration:none;display:inline-grid;place-items:center;width:1.1rem;height:1.5rem;font-size:.7rem;border:1px solid var(--trait);border-radius:4px;margin-right:2px;font-family:var(--titre);color:var(--sourdine)}
+.carte .ci u.on,.gi u.on{background:var(--ambre);color:var(--nuit);border-color:var(--ambre)}
+.grand-boite{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
+.grand-img{background:radial-gradient(circle at 50% 45%,var(--prune-2),var(--prune) 70%);border:3px solid var(--prune-2);border-radius:32px;width:100%;padding:22px 8px;display:grid;place-items:center}
+.gi{font-style:normal;font-size:11rem;line-height:1.1;animation:pop .35s ease-out}
+.gi.cc{width:190px;height:190px;border-radius:36px;border:5px solid var(--creme);font-size:0}
+.gi u{width:2.4rem;height:3.4rem;font-size:1.2rem;margin-right:4px}
+.grand-mot{font-family:var(--titre);font-weight:800;font-size:2.2rem;color:var(--ambre);margin:0}
+.grand-sens{font-size:1.3rem;margin:0}
+.carte{background:var(--prune);border-radius:14px 14px 14px 4px;padding:12px;min-width:0;border:2px solid var(--trait)}
+.carte.vide{border-style:dashed;color:var(--trait);display:grid;place-items:center;min-height:72px;background:none;font-family:var(--titre);font-size:1.4rem}
+.carte b{display:block;color:var(--ambre);overflow-wrap:anywhere}
+.carte span{overflow-wrap:anywhere}
+.bilan{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
+.bilan li{background:var(--prune);border-radius:12px;padding:10px 14px}
+.sous{display:block;font-family:var(--texte);font-weight:400;font-size:.88rem;color:var(--sourdine);letter-spacing:0;text-transform:none}
+.btn .sous{color:inherit;opacity:.75}
+.onglets{display:flex;flex-wrap:wrap;gap:5px;background:var(--prune);border-radius:16px;padding:5px}
+.onglet{flex:1 1 auto;min-width:0;border:0;background:none;border-radius:12px;padding:10px 4px;font-family:var(--titre);font-weight:800;font-size:.82rem;line-height:1.15;color:var(--sourdine)}
+.onglet[aria-selected="true"]{background:var(--lilas);color:var(--nuit)}
+.onglet-lien{flex:1 1 auto;min-width:0;display:flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;border-radius:12px;padding:10px 4px;font-family:var(--titre);font-weight:800;font-size:.82rem;line-height:1.15;background:var(--ambre);color:var(--nuit)}
+.onglet-lien:focus-visible{outline:3px solid var(--creme);outline-offset:2px}
+.paquet .point{display:block;font-weight:400;font-size:.78rem;color:var(--lilas);overflow-wrap:anywhere}
+.fiches{display:flex;flex-direction:column;gap:8px}
+.titre-fiche{font-size:clamp(1.6rem,7vw,2.1rem)}
+.consigne{margin:0;color:var(--sourdine);font-size:.95rem}
+.fiche-titre{font-family:var(--titre);font-weight:800;font-size:1.5rem;line-height:1.15;margin:0;text-align:center;text-wrap:balance}
+.fiche{margin:0;font-size:1.12rem;line-height:1.6;background:var(--prune);border-radius:6px 22px 22px 22px;padding:16px 18px}
+button.carte{text-align:left;font:inherit;color:inherit}
+.paquets{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.paquet{background:var(--prune-2);border:2px solid var(--trait);border-radius:14px;padding:10px 12px;text-align:left;min-width:0;font-weight:700}
+.paquet .sous{overflow-wrap:anywhere}
+.paquet .score{display:block;color:var(--ambre);font-size:.9rem}
+.paquet .score s{text-decoration:none;color:var(--trait)}
+.visuel{font-size:7.5rem;line-height:1.1;padding:18px 8px 10px;border-radius:28px;border:3px solid var(--prune-2);background:radial-gradient(circle at 50% 45%,var(--prune-2),var(--prune) 70%);animation:pop .35s ease-out;text-align:center;font-family:var(--titre);font-weight:800;color:var(--ambre)}
+.pastille-couleur{width:170px;height:170px;border-radius:26px;border:4px solid var(--creme);margin:0 auto}
+.mot-fr{font-family:var(--titre);font-weight:800;font-size:2.2rem;text-align:center;margin:0;line-height:1.1;text-wrap:balance}
+.sens{text-align:center;font-size:1.3rem;margin:0;color:var(--lilas)}
+.options.illus .choix{font-family:var(--texte);font-size:.95rem;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;overflow-wrap:anywhere}
+.mini{font-size:3.2rem;line-height:1.1;font-family:var(--titre);font-weight:800;color:var(--ambre)}
+.image.grande{border-radius:26px;margin:4px 0 8px}
+.bob{animation:bob 2.6s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.grande.bravo .bob{animation:saut .6s ease-out 2}
+.visuel .etoiles{display:block;font-size:1.3rem;letter-spacing:2px;line-height:1.3;color:var(--ambre);font-family:var(--texte)}
+.choix .emo{font-size:1.5rem;display:block;line-height:1.2}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes saut{0%,100%{transform:translateY(0) scale(1)}40%{transform:translateY(-14px) scale(1.12)}}
+@keyframes pop{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+@media (prefers-reduced-motion:reduce){.bob,.grande.bravo .bob,.visuel{animation:none}}
+.semaine{display:flex;gap:6px;justify-content:center}
+.semaine span{width:42px;height:64px;border-radius:10px;border:2px solid var(--trait);display:grid;place-items:center;font-family:var(--titre);font-weight:800;color:var(--sourdine)}
+.semaine .actif{background:var(--ambre);border-color:var(--ambre);color:var(--nuit)}
+.semaine.petit{gap:2px}
+.semaine.petit span{width:12px;height:20px;font-size:.55rem;border-width:1px;border-radius:4px}
+.mini-couleur{width:60px;height:60px;border-radius:10px;border:2px solid var(--creme)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* Coffre, mini-jeux, suivi */
+.cadenas{display:flex;gap:6px;flex-wrap:wrap;font-size:1.5rem;margin:2px 0}
+.grille-cadenas{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.cadenas-bouton{background:var(--prune);border:2px solid var(--trait);border-radius:14px;padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:2px;font-weight:800}
+.cadenas-bouton .ico{font-size:1.25rem;font-family:var(--titre);min-height:1.6em;display:flex;align-items:center;text-align:center;line-height:1.1}
+.cadenas-bouton small{font-size:.7rem;color:var(--sourdine);font-weight:400}
+.cadenas-bouton.ouvert{border-color:var(--ok);background:rgba(110,200,140,.14)}
+.cadenas-bouton:disabled{opacity:.55;cursor:not-allowed}
+.mot-gagne{margin:6px 0;font-size:1.1rem}
+.mot-gagne b{color:var(--ok);font-family:var(--titre);font-size:1.4rem}
+.grille-gens{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.gens{background:var(--prune);border:2px solid var(--trait);border-radius:14px;padding:6px 4px;display:flex;flex-direction:column;align-items:center;gap:0;font-weight:700;font-size:.85rem;min-width:0}
+.gens svg,.cible svg{width:100%;max-width:84px;height:auto}
+.gens img,.cible img{width:100%;max-width:92px;aspect-ratio:1;object-fit:cover;object-position:50% 22%;border-radius:12px;display:block;margin-bottom:2px}
+.gens small,.cible small{font-size:.7rem;color:var(--sourdine);font-weight:400}
+.gens.bon{border-color:var(--ok);background:rgba(110,200,140,.18)}
+.gens.faux{border-color:var(--non);opacity:.5}
+.indices,.banque{display:flex;flex-wrap:wrap;gap:8px}
+.mot-indice,.puce{background:var(--lilas);color:var(--nuit);border:0;border-radius:12px;padding:6px 12px;display:flex;flex-direction:column;align-items:center;font-size:1rem;line-height:1.2;touch-action:none}
+.mot-indice small,.puce small{font-size:.78rem;font-weight:600;opacity:.8}
+.puce{cursor:grab;user-select:none}
+.puce.choisi{outline:3px solid var(--ambre)}
+.puce.glisse{position:relative;z-index:20;box-shadow:0 8px 18px rgba(0,0,0,.5);cursor:grabbing}
+.puce.bon{background:var(--ok);cursor:default}
+.puce.secoue{animation:secoue .4s}
+.grille-assoc{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.cible{background:var(--prune);border:2px dashed var(--trait);border-radius:16px;padding:8px;display:flex;flex-direction:column;align-items:center;font-weight:700;min-width:0}
+.cible .depot{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;min-height:44px;margin-top:4px}
+.grille-memo{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.memo{aspect-ratio:1;background:var(--prune-2);border:2px solid var(--trait);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:.8rem;padding:2px;text-align:center}
+.memo .dos{font-size:1.6rem;color:var(--lilas)}
+.memo.vue{background:var(--papier);color:var(--encre)}
+.memo.bon{border-color:var(--ok);background:#d7f2e1}
+.memo .ci{font-style:normal;font-size:2rem}
+textarea.code{width:100%;background:var(--prune);color:var(--creme);border:2px solid var(--trait);border-radius:12px;padding:10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;word-break:break-all;resize:vertical}
+input[type=file]{max-width:100%;color:var(--sourdine);margin:6px 0}
+a.btn{text-align:center;text-decoration:none;display:block}
+
+.grille-obj{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.grille-obj.trois{grid-template-columns:repeat(3,1fr)}.grille-obj.deux{grid-template-columns:repeat(2,1fr)}
+.cellule{aspect-ratio:1;background:var(--prune);border:2px solid var(--trait);border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:2.2rem;line-height:1;padding:2px;min-width:0}
+.cellule small{font-size:.7rem;font-weight:700;color:var(--creme);text-align:center;line-height:1.1}
+.cellule.fixe{cursor:default}.cellule.vide{border-style:dashed}
+.cellule.bon{border-color:var(--ok);background:rgba(110,200,140,.2)}.cellule.faux{border-color:var(--non);opacity:.45}
+.grille-obj.petit{max-width:260px;margin:0 auto}.grille-obj.petit .cellule{font-size:1.6rem}
+.classe-diff{margin-bottom:8px}
+.sac{display:flex;align-items:center;justify-content:center;gap:10px;font-size:3.2rem;margin:4px 0}.sac b{font-family:var(--titre);color:var(--ambre)}
+.annonce{font-size:1.25rem;text-align:center;margin:4px 0}.annonce .n{font-size:.8rem;color:var(--sourdine);display:block}
+.vis-consigne{background:var(--papier);color:var(--encre);border-radius:16px;padding:18px;text-align:center;font-size:1.5rem;position:relative;line-height:1.5}
+.vis-consigne small{position:absolute;right:10px;bottom:6px;font-size:.75rem;color:#6b5d7a}
+.ex.rond{border:3px solid #c2452f;border-radius:50%;padding:2px 14px}
+.ex mark{background:#ffe96b;padding:0 4px}
+.choix small{display:block;font-size:.8rem;font-weight:400;opacity:.8}
+.grille-ville{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.case-ville{aspect-ratio:1;background:var(--prune);border:2px solid var(--trait);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:1.7rem;line-height:1;position:relative;padding:2px;min-width:0}
+.case-ville small{font-size:.62rem;font-weight:700;line-height:1.1;text-align:center}
+.case-ville .pion{position:absolute;top:-6px;left:-4px;font-style:normal;font-size:.95rem;background:var(--ambre);border-radius:10px;padding:0 3px}
+.case-ville.depart{border:3px solid #e8553d;background:rgba(232,85,61,.18)}
+.case-ville .pion-grand{position:absolute;inset:3px 0 auto;margin:0 auto;height:62%;width:auto;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6));z-index:2}
+.case-ville .depart-txt{position:absolute;left:0;right:0;top:0;font-style:normal;font-size:.55rem;font-weight:800;text-align:center;color:#fff;background:#e8553d;border-radius:8px 8px 0 0;z-index:3}
+.case-ville.depart .pion-grand{top:15px;left:auto;right:3px;margin:0;height:48%}
+.case-ville.depart span{margin-right:38%}
+.case-ville.trace{background:rgba(243,168,92,.25);border-color:var(--ambre)}
+.case-ville em{position:absolute;right:3px;bottom:2px;font-size:.7rem;font-style:normal;background:var(--ambre);color:var(--nuit);border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-weight:800}
+.case-ville.bon{border-color:var(--ok)}.case-ville.faux{opacity:.4}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <section class="accueil" id="accueil">
+    <div class="affiche">
+      <img src="prof.jpg" alt="Madame Marion, professeure de français, cheveux bouclés, lunettes et blouse lilas">
+      <div class="bandeau">
+        <p class="sur">Apprends le français en enquêtant</p>
+        <h1>Port-Clair</h1>
+      </div>
+    </div>
+    <p class="note" id="note" aria-live="polite" hidden>Partie sauvegardée sur cet appareil. Tu peux reprendre quand tu veux.</p>
+    <div class="champ">
+      <label for="prenom">Ton prénom</label>
+      <input id="prenom" maxlength="16" autocomplete="given-name" placeholder="Alex">
+    </div>
+    <div class="champ">
+      <span class="etq" id="etq-langue">Ta langue</span>
+      <div class="langues" id="langues"></div>
+    </div>
+    <div class="onglets" role="tablist" aria-label="Espaces du jeu">
+      <button class="onglet" role="tab" data-o="bases" aria-selected="true">Premiers mots</button>
+      <button class="onglet" role="tab" data-o="classe" aria-selected="false">En classe</button>
+      <button class="onglet" role="tab" data-o="culture" aria-selected="false">Culture</button>
+      <button class="onglet" role="tab" data-o="episodes" aria-selected="false">L'histoire</button>
+      <button class="onglet" role="tab" data-o="jeux" aria-selected="false">Mini-jeux</button>
+      <button class="onglet" role="tab" data-o="suivi" aria-selected="false">Mon suivi</button>
+      <a class="onglet-lien" href="https://port-clair-classe.onrender.com/solo" target="_blank" rel="noopener">🎯 Entraînement</a>
+    </div>
+    <div class="episodes" id="bases"></div>
+    <div class="episodes" id="classe" hidden></div>
+    <div class="episodes" id="culture" hidden></div>
+    <div class="episodes" id="episodes" hidden></div>
+    <p class="pied"><a href="confidentialite.html">Confidentialité et mentions</a></p>
+    <div class="episodes" id="jeux" hidden></div>
+    <div class="episodes" id="suivi" hidden></div>
+    <button class="btn doux" id="menu-cartes">Mes cartes de vocabulaire</button>
+  </section>
+
+  <header class="haut" id="haut" hidden>
+    <div class="ligne">
+      <button class="pastille menu" id="vers-menu">‹ Menu</button>
+      <div class="lieu" id="lieu"></div>
+      <span class="pastille" aria-label="Étoiles gagnées"><b>★</b> <span id="nb-etoiles">0</span></span>
+      <button class="pastille" id="ouvre-cartes">Cartes <b id="nb-cartes">0</b></button>
+      <button class="pastille" id="voix" aria-pressed="true">Voix</button>
+    </div>
+    <div class="jauge" aria-hidden="true"><i id="jauge"></i></div>
+  </header>
+  <main class="scene" id="scene" hidden></main>
+</div>
+
+<div class="voile" id="voile" hidden>
+  <div class="album">
+    <h2>Tes cartes de vocabulaire</h2>
+    <p class="pitch">Touche un mot souligné dans l'histoire pour gagner sa carte.</p>
+    <div class="grille" id="grille"></div>
+    <button class="btn doux" id="ferme-cartes">Fermer</button>
+  </div>
+</div>
+
+<div class="voile" id="grand" hidden></div>
+
+<script src="trad.js"></script>
+<script src="trad2.js"></script>
+<script src="trad3.js"></script>
+<script src="trad4.js"></script>
+<script src="trad5.js"></script>
+<script src="trad6.js"></script>
+<script src="trad7.js"></script>
+<script src="trad8.js"></script>
+<script src="trad9.js"></script>
+<script src="trad10.js"></script>
+<script src="trad11.js"></script>
+<script src="trad12.js"></script>
+<script src="eps.js"></script>
+<script src="eps2.js"></script>
+<script>
+/* ---------- Langues et vocabulaire ---------- */
+const LANGUES=[["en","English"],["es","Español"],["pt","Português"],["ar","العربية"],["tr","Türkçe"],["uk","Українська"],["ro","Română"],["fa","دری"],["zh","中文"],
+  ["ur","اردو"],["ps","پښتو"],["pa","ਪੰਜਾਬੀ"],["az","Azərbaycanca"],["hi","हिन्दी"],["bn","বাংলা"],["ru","Русский"]];
+const L=LANGUES.map(x=>x[0]);
+const RTL={ar:1,fa:1,ur:1,ps:1};
+// clé : [français, en, es, pt, ar, tr, uk, ro, fa, zh, ur, ps, pa, az, hi, bn, ru]
+const MOTS={
+"bienvenue":["bienvenue","welcome","bienvenido/a","bem-vindo/a","أهلًا وسهلًا","hoş geldin","ласкаво просимо","bun venit","خوش آمدید","欢迎","خوش آمدید","ښه راغلاست","ਜੀ ਆਇਆਂ ਨੂੰ","xoş gəldin","स्वागत है","স্বাগতম","добро пожаловать"],
+"professeure":["la professeure","teacher","profesora","professora","أستاذة","öğretmen","вчителька","profesoară","معلمه","老师","استانی","ښوونکې","ਅਧਿਆਪਕਾ","müəllimə","अध्यापिका","শিক্ষিকা","учительница"],
+"apprendre":["apprendre","to learn","aprender","aprender","يتعلّم","öğrenmek","вчитися","a învăța","یاد گرفتن","学习","سیکھنا","زده کول","ਸਿੱਖਣਾ","öyrənmək","सीखना","শেখা","учить"],
+"mot":["le mot","word","palabra","palavra","كلمة","kelime","слово","cuvânt","کلمه","词","لفظ","کلمه","ਸ਼ਬਦ","söz","शब्द","শব্দ","слово"],
+"aide":["l'aide","help","ayuda","ajuda","مساعدة","yardım","допомога","ajutor","کمک","帮助","مدد","مرسته","ਮਦਦ","kömək","मदद","সাহায্য","помощь"],
+"écouter":["écouter","to listen","escuchar","ouvir","يستمع","dinlemek","слухати","a asculta","گوش دادن","听","سننا","اورېدل","ਸੁਣਨਾ","dinləmək","सुनना","শোনা","слушать"],
+"jour":["le jour","day","día","dia","يوم","gün","день","zi","روز","天","دن","ورځ","ਦਿਨ","gün","दिन","দিন","день"],
+"salut":["salut","hi","hola","olá","مرحبًا","selam","привіт","salut","سلام","嗨","سلام","سلام","ਹੈਲੋ","salam","नमस्ते","হাই","привет"],
+"casier":["le casier","locker","taquilla","cacifo","خزانة","dolap","шафка","dulap","الماری","储物柜","لاکر","المارۍ","ਲਾਕਰ","şkaf","लॉकर","লকার","шкафчик"],
+"couloir":["le couloir","hallway","pasillo","corredor","ممرّ","koridor","коридор","coridor","دهلیز","走廊","راہداری","دهلېز","ਗਲਿਆਰਾ","dəhliz","गलियारा","করিডোর","коридор"],
+"enveloppe":["l'enveloppe","envelope","sobre","envelope","ظرف","zarf","конверт","plic","پاکت","信封","لفافہ","پاکټ","ਲਿਫ਼ਾਫ਼ਾ","zərf","लिफ़ाफ़ा","খাম","конверт"],
+"rendez-vous":["le rendez-vous","meeting","cita","encontro","موعد","buluşma","зустріч","întâlnire","ملاقات","见面","ملاقات","ملاقات","ਮੁਲਾਕਾਤ","görüş","मुलाक़ात","সাক্ষাৎ","встреча"],
+"midi":["midi","noon","mediodía","meio-dia","الظهر","öğlen","полудень","amiază","چاشت","中午","دوپہر","غرمه","ਦੁਪਹਿਰ","günorta","दोपहर","দুপুর","полдень"],
+"cantine":["la cantine","cafeteria","comedor","cantina","مطعم المدرسة","yemekhane","їдальня","cantină","طعام‌خانه","食堂","کینٹین","د ډوډۍ خونه","ਕੰਟੀਨ","yeməkxana","कैंटीन","ক্যান্টিন","столовая"],
+"secret":["le secret","secret","secreto","segredo","سرّ","sır","секрет","secret","راز","秘密","راز","راز","ਰਾਜ਼","sirr","राज़","গোপন কথা","секрет"],
+"nom":["le nom","name","nombre","nome","اسم","isim","ім'я","nume","نام","名字","نام","نوم","ਨਾਮ","ad","नाम","নাম","имя"],
+"porte":["la porte","door","puerta","porta","باب","kapı","двері","ușă","دروازه","门","دروازہ","دروازه","ਦਰਵਾਜ਼ਾ","qapı","दरवाज़ा","দরজা","дверь"],
+"entraînement":["l'entraînement","practice","práctica","treino","تدريب","alıştırma","тренування","antrenament","تمرین","练习","مشق","تمرین","ਅਭਿਆਸ","məşq","अभ्यास","অনুশীলন","тренировка"],
+"pain":["le pain","bread","pan","pão","خبز","ekmek","хліб","pâine","نان","面包","روٹی","ډوډۍ","ਰੋਟੀ","çörək","रोटी","রুটি","хлеб"],
+"manger":["manger","to eat","comer","comer","يأكل","yemek","їсти","a mânca","خوردن","吃","کھانا","خوړل","ਖਾਣਾ","yemək","खाना","খাওয়া","есть"],
+"journal":["le journal","newspaper","periódico","jornal","جريدة","gazete","газета","ziar","روزنامه","报纸","اخبار","ورځپاڼه","ਅਖ਼ਬਾਰ","qəzet","अख़बार","সংবাদপত্র","газета"],
+"problème":["le problème","problem","problema","problema","مشكلة","sorun","проблема","problemă","مشکل","问题","مسئلہ","ستونزه","ਸਮੱਸਿਆ","problem","समस्या","সমস্যা","проблема"],
+"enquête":["l'enquête","investigation","investigación","investigação","تحقيق","soruşturma","розслідування","anchetă","تحقیق","调查","تفتیش","پلټنه","ਜਾਂਚ","araşdırma","जाँच","তদন্ত","расследование"],
+// Épisode 2
+"salle":["la salle","room","sala","sala","قاعة","oda","кімната","sală","اتاق","房间","کمرہ","کوټه","ਕਮਰਾ","otaq","कमरा","ঘর","комната"],
+"appareil photo":["l'appareil photo","camera","cámara","câmara","كاميرا","fotoğraf makinesi","фотоапарат","aparat foto","کمره","相机","کیمرا","کامره","ਕੈਮਰਾ","fotoaparat","कैमरा","ক্যামেরা","фотоаппарат"],
+"table":["la table","table","mesa","mesa","طاولة","masa","стіл","masă","میز","桌子","میز","مېز","ਮੇਜ਼","masa","मेज़","টেবিল","стол"],
+"ordinateur":["l'ordinateur","computer","ordenador","computador","حاسوب","bilgisayar","комп'ютер","calculator","کمپیوتر","电脑","کمپیوٹر","کمپیوټر","ਕੰਪਿਊਟਰ","kompüter","कंप्यूटर","কম্পিউটার","компьютер"],
+"clé":["la clé","key","llave","chave","مفتاح","anahtar","ключ","cheie","کلید","钥匙","چابی","کیلي","ਚਾਬੀ","açar","चाबी","চাবি","ключ"],
+"question":["la question","question","pregunta","pergunta","سؤال","soru","запитання","întrebare","سوال","问题","سوال","پوښتنه","ਸਵਾਲ","sual","सवाल","প্রশ্ন","вопрос"],
+"gymnase":["le gymnase","gym","gimnasio","ginásio","صالة الرياضة","spor salonu","спортзал","sală de sport","سالون ورزش","体育馆","جمنازیم","جمنازیوم","ਜਿਮ","idman zalı","जिम","জিম","спортзал"],
+"sac":["le sac","bag","mochila","mochila","حقيبة","çanta","сумка","geantă","بکس","包","بیگ","بکس","ਬੈਗ","çanta","बैग","ব্যাগ","сумка"],
+"banc":["le banc","bench","banco","banco","مقعد","bank","лавка","bancă","نیمکت","长凳","بینچ","بنچ","ਬੈਂਚ","skamya","बेंच","বেঞ্চ","скамейка"],
+"rouge":["rouge","red","rojo","vermelho","أحمر","kırmızı","червоний","roșu","سرخ","红色","سرخ","سور","ਲਾਲ","qırmızı","लाल","লাল","красный"],
+"photo":["la photo","photo","foto","foto","صورة","fotoğraf","фото","fotografie","عکس","照片","تصویر","عکس","ਤਸਵੀਰ","şəkil","तस्वीर","ছবি","фото"],
+"surprise":["la surprise","surprise","sorpresa","surpresa","مفاجأة","sürpriz","сюрприз","surpriză","سورپرایز","惊喜","سرپرائز","سرپرایز","ਸਰਪ੍ਰਾਈਜ਼","sürpriz","सरप्राइज़","সারপ্রাইজ","сюрприз"]
+};
+// Phrases traduites en entier : seulement au début de l'épisode 1, puis l'aide diminue.
+const PHRASES={
+p1:{en:"Hello {nom}! Welcome to Tilleuls school. I'm Madame Marion, your French teacher.",
+ es:"¡Hola {nom}! Bienvenido/a al colegio Les Tilleuls. Soy Madame Marion, tu profesora de francés.",
+ pt:"Olá {nom}! Bem-vindo/a à escola Les Tilleuls. Sou a Madame Marion, a tua professora de francês.",
+ ar:"مرحبًا {nom}! أهلًا بك في مدرسة «لي تيّول». أنا السيدة ماريون، أستاذتك في اللغة الفرنسية.",
+ tr:"Merhaba {nom}! Tilleuls okuluna hoş geldin. Ben Madame Marion, Fransızca öğretmeninim.",
+ uk:"Привіт, {nom}! Ласкаво просимо до школи «Тійоль». Я мадам Маріон, твоя вчителька французької.",
+ ro:"Bună, {nom}! Bun venit la școala Les Tilleuls. Sunt Madame Marion, profesoara ta de franceză.",
+ fa:"سلام {nom}! به مکتب «تیول» خوش آمدید. من خانم ماریون هستم، معلم فرانسوی شما.",
+ zh:"你好，{nom}！欢迎来到蒂耶尔中学。我是玛丽昂老师，你的法语老师。",
+ ur:"سلام {nom}! تیول اسکول میں خوش آمدید۔ میں مادام ماریون ہوں، آپ کی فرانسیسی کی استانی۔",
+ ps:"سلام {nom}! د تیول ښوونځي ته ښه راغلاست. زه مادام ماریون یم، ستاسو د فرانسوي ژبې ښوونکې.",
+ pa:"ਹੈਲੋ {nom}! ਤੀਯੋਲ ਸਕੂਲ ਵਿੱਚ ਜੀ ਆਇਆਂ ਨੂੰ। ਮੈਂ ਮੈਡਮ ਮਾਰੀਓਂ ਹਾਂ, ਤੁਹਾਡੀ ਫ਼ਰਾਂਸੀਸੀ ਦੀ ਅਧਿਆਪਕਾ।",
+ az:"Salam {nom}! Tilleuls məktəbinə xoş gəldin. Mən Madam Marionam, sənin fransız dili müəllimən.",
+ hi:"नमस्ते {nom}! तियोल स्कूल में आपका स्वागत है। मैं मैडम मारियों हूँ, आपकी फ़्रेंच की अध्यापिका।",
+ bn:"হ্যালো {nom}! তিয়োল স্কুলে স্বাগতম। আমি মাদাম মারিওঁ, তোমার ফরাসি ভাষার শিক্ষিকা।",
+ ru:"Привет, {nom}! Добро пожаловать в школу «Тийоль». Я мадам Марион, твоя учительница французского."},
+p2:{en:"Here you'll learn French by living a story. Tap an underlined word to see its translation.",
+ es:"Aquí vas a aprender francés viviendo una historia. Toca una palabra subrayada para ver su traducción.",
+ pt:"Aqui vais aprender francês vivendo uma história. Toca numa palavra sublinhada para ver a tradução.",
+ ar:"هنا ستتعلّم الفرنسية وأنت تعيش قصة. المس كلمة تحتها خط لترى ترجمتها.",
+ tr:"Burada bir hikâye yaşayarak Fransızca öğreneceksin. Çevirisini görmek için altı çizili bir kelimeye dokun.",
+ uk:"Тут ти вивчатимеш французьку, проживаючи історію. Торкнися підкресленого слова, щоб побачити переклад.",
+ ro:"Aici vei învăța franceza trăind o poveste. Atinge un cuvânt subliniat ca să-i vezi traducerea.",
+ fa:"اینجا شما فرانسوی را با زندگی کردن در یک قصه یاد می‌گیرید. روی کلمه‌ای که زیرش خط دارد بزنید تا ترجمه‌اش را ببینید.",
+ zh:"在这里，你会通过经历一个故事来学法语。点一下带下划线的词，就能看到翻译。",
+ ur:"یہاں آپ ایک کہانی جیتے ہوئے فرانسیسی سیکھیں گے۔ ترجمہ دیکھنے کے لیے خط کشیدہ لفظ کو چھوئیں۔",
+ ps:"دلته به تاسو د یوې کیسې په ترڅ کې فرانسوي زده کړئ. د ژباړې لیدو لپاره په لاندې کرښه شوې کلمه ګوته کېږدئ.",
+ pa:"ਇੱਥੇ ਤੁਸੀਂ ਇੱਕ ਕਹਾਣੀ ਜਿਉਂਦੇ ਹੋਏ ਫ਼ਰਾਂਸੀਸੀ ਸਿੱਖੋਗੇ। ਅਨੁਵਾਦ ਦੇਖਣ ਲਈ ਹੇਠਾਂ ਲਕੀਰ ਵਾਲੇ ਸ਼ਬਦ ਨੂੰ ਛੂਹੋ।",
+ az:"Burada bir hekayə yaşayaraq fransız dilini öyrənəcəksən. Tərcüməsini görmək üçün altından xətt çəkilmiş sözə toxun.",
+ hi:"यहाँ आप एक कहानी जीते हुए फ़्रेंच सीखेंगे। अनुवाद देखने के लिए रेखांकित शब्द को छुएँ।",
+ bn:"এখানে তুমি একটি গল্পের মধ্য দিয়ে ফরাসি শিখবে। অনুবাদ দেখতে নিচে দাগ দেওয়া শব্দে স্পর্শ করো।",
+ ru:"Здесь ты будешь учить французский, проживая историю. Коснись подчёркнутого слова, чтобы увидеть перевод."},
+p3:{en:"The “Traduire” button translates the whole sentence. But careful: the further you go, the less help there is!",
+ es:"El botón «Traduire» traduce toda la frase. Pero cuidado: cuanto más avanzas, ¡menos ayuda hay!",
+ pt:"O botão «Traduire» traduz a frase inteira. Mas atenção: quanto mais avanças, menos ajuda há!",
+ ar:"زر «Traduire» يترجم الجملة كلها. لكن انتبه: كلما تقدّمت، قلّت المساعدة!",
+ tr:"«Traduire» düğmesi tüm cümleyi çevirir. Ama dikkat: ilerledikçe yardım azalır!",
+ uk:"Кнопка «Traduire» перекладає все речення. Але увага: що далі, то менше допомоги!",
+ ro:"Butonul «Traduire» traduce toată propoziția. Dar atenție: cu cât avansezi, cu atât ai mai puțin ajutor!",
+ fa:"دکمهٔ «Traduire» تمام جمله را ترجمه می‌کند. اما توجه: هرچه پیش بروید، کمک کمتر می‌شود!",
+ zh:"“Traduire”按钮可以翻译整句话。不过注意：越往后，帮助越少！",
+ ur:"«Traduire» کا بٹن پورے جملے کا ترجمہ کرتا ہے۔ لیکن دھیان رہے: جتنا آگے بڑھیں گے، مدد اتنی کم ہوگی!",
+ ps:"د «Traduire» تڼۍ ټوله جمله ژباړي. خو پام کوئ: څومره چې مخکې ځئ، مرسته کمېږي!",
+ pa:"«Traduire» ਬਟਨ ਪੂਰੇ ਵਾਕ ਦਾ ਅਨੁਵਾਦ ਕਰਦਾ ਹੈ। ਪਰ ਧਿਆਨ ਰੱਖੋ: ਜਿੰਨਾ ਅੱਗੇ ਵਧੋਗੇ, ਮਦਦ ਓਨੀ ਘੱਟ ਹੋਵੇਗੀ!",
+ az:"«Traduire» düyməsi bütün cümləni tərcümə edir. Amma diqqət: irəlilədikcə kömək azalır!",
+ hi:"«Traduire» बटन पूरे वाक्य का अनुवाद करता है। लेकिन ध्यान रहे: जितना आगे बढ़ेंगे, मदद उतनी कम होगी!",
+ bn:"«Traduire» বোতাম পুরো বাক্যের অনুবাদ করে। তবে সাবধান: যত এগোবে, সাহায্য তত কমবে!",
+ ru:"Кнопка «Traduire» переводит всё предложение. Но внимание: чем дальше, тем меньше помощи!"},
+p4:{en:"The “Écouter” button lets you listen to the sentence. Shall we? Your first day begins!",
+ es:"El botón «Écouter» te deja escuchar la frase. ¿Vamos? ¡Empieza tu primer día!",
+ pt:"O botão «Écouter» deixa-te ouvir a frase. Vamos? O teu primeiro dia começa!",
+ ar:"زر «Écouter» يجعلك تستمع إلى الجملة. هيا بنا؟ يومك الأول يبدأ!",
+ tr:"«Écouter» düğmesi cümleyi dinlemeni sağlar. Hazır mısın? İlk günün başlıyor!",
+ uk:"Кнопка «Écouter» дає послухати речення. Почнімо? Твій перший день починається!",
+ ro:"Butonul «Écouter» te lasă să asculți propoziția. Mergem? Prima ta zi începe!",
+ fa:"دکمهٔ «Écouter» جمله را برای شما می‌خواند. برویم؟ روز اول شما شروع می‌شود!",
+ zh:"“Écouter”按钮可以让你听这句话。出发吧？你的第一天开始了！",
+ ur:"«Écouter» کا بٹن آپ کو جملہ سناتا ہے۔ چلیں؟ آپ کا پہلا دن شروع ہوتا ہے!",
+ ps:"د «Écouter» تڼۍ جمله درته اوروي. ځو؟ ستاسو لومړۍ ورځ پیلېږي!",
+ pa:"«Écouter» ਬਟਨ ਤੁਹਾਨੂੰ ਵਾਕ ਸੁਣਾਉਂਦਾ ਹੈ। ਚੱਲੀਏ? ਤੁਹਾਡਾ ਪਹਿਲਾ ਦਿਨ ਸ਼ੁਰੂ ਹੁੰਦਾ ਹੈ!",
+ az:"«Écouter» düyməsi cümləni dinləməyə imkan verir. Gedək? İlk günün başlayır!",
+ hi:"«Écouter» बटन आपको वाक्य सुनाता है। चलें? आपका पहला दिन शुरू होता है!",
+ bn:"«Écouter» বোতাম তোমাকে বাক্যটি শোনায়। চলো? তোমার প্রথম দিন শুরু হচ্ছে!",
+ ru:"Кнопка «Écouter» даёт послушать предложение. Начнём? Твой первый день начинается!"},
+s1:{en:"Hi! Is it your first day? I'm Sami.",es:"¡Hola! ¿Es tu primer día? Yo soy Sami.",pt:"Olá! É o teu primeiro dia? Eu sou o Sami.",
+ ar:"مرحبًا! هل هذا يومك الأول؟ أنا سامي.",tr:"Selam! İlk günün mü? Ben Sami.",uk:"Привіт! Це твій перший день? А я Самі.",
+ ro:"Salut! E prima ta zi? Eu sunt Sami.",fa:"سلام! روز اول تو است؟ من سامی هستم.",zh:"嗨！今天是你的第一天吗？我叫萨米。",
+ ur:"سلام! کیا یہ تمہارا پہلا دن ہے؟ میں سامی ہوں۔",ps:"سلام! دا ستا لومړۍ ورځ ده؟ زه سامي یم.",pa:"ਹੈਲੋ! ਕੀ ਇਹ ਤੇਰਾ ਪਹਿਲਾ ਦਿਨ ਹੈ? ਮੈਂ ਸਾਮੀ ਹਾਂ।",
+ az:"Salam! Bu sənin ilk günündür? Mən Samiyəm.",hi:"हाय! क्या यह तुम्हारा पहला दिन है? मैं सामी हूँ।",bn:"হাই! এটা কি তোমার প্রথম দিন? আমি সামি।",ru:"Привет! Это твой первый день? А я Сами."},
+o1:{en:"Put the words back in order to answer Sami.",es:"Ordena las palabras para responder a Sami.",pt:"Põe as palavras na ordem certa para responder ao Sami.",
+ ar:"رتّب الكلمات لتجيب سامي.",tr:"Sami'ye cevap vermek için kelimeleri sıraya koy.",uk:"Розстав слова по порядку, щоб відповісти Самі.",
+ ro:"Pune cuvintele în ordine ca să-i răspunzi lui Sami.",fa:"کلمه‌ها را به ترتیب بگذارید تا به سامی جواب بدهید.",zh:"把词语排好顺序，回答萨米。",
+ ur:"سامی کو جواب دینے کے لیے الفاظ کو ترتیب میں رکھیں۔",ps:"سامي ته د ځواب ورکولو لپاره کلمې په ترتیب کېږدئ.",pa:"ਸਾਮੀ ਨੂੰ ਜਵਾਬ ਦੇਣ ਲਈ ਸ਼ਬਦਾਂ ਨੂੰ ਸਹੀ ਤਰਤੀਬ ਵਿੱਚ ਰੱਖੋ।",
+ az:"Samiyə cavab vermək üçün sözləri sıraya düz.",hi:"सामी को जवाब देने के लिए शब्दों को सही क्रम में रखें।",bn:"সামিকে উত্তর দিতে শব্দগুলো সঠিক ক্রমে সাজাও।",ru:"Расставь слова по порядку, чтобы ответить Сами."},
+l1:{en:"Listen carefully to the voice. Which locker number do you hear?",es:"Escucha bien la voz. ¿Qué número de taquilla oyes?",
+ pt:"Ouve bem a voz. Que número de cacifo ouves?",ar:"استمع جيدًا إلى الصوت. ما رقم الخزانة الذي تسمعه؟",
+ tr:"Sesi iyi dinle. Hangi dolap numarasını duyuyorsun?",uk:"Уважно послухай голос. Який номер шафки ти чуєш?",
+ ro:"Ascultă bine vocea. Ce număr de dulap auzi?",fa:"به صدا خوب گوش بدهید. کدام شمارهٔ الماری را می‌شنوید؟",zh:"仔细听这个声音。你听到的储物柜号码是多少？",
+ ur:"آواز غور سے سنیں۔ آپ کو کون سا لاکر نمبر سنائی دیتا ہے؟",ps:"غږ ته ښه غوږ ونیسئ. د کومې المارۍ شمېره اورئ؟",pa:"ਆਵਾਜ਼ ਧਿਆਨ ਨਾਲ ਸੁਣੋ। ਤੁਹਾਨੂੰ ਕਿਹੜਾ ਲਾਕਰ ਨੰਬਰ ਸੁਣਦਾ ਹੈ?",
+ az:"Səsi diqqətlə dinlə. Hansı şkaf nömrəsini eşidirsən?",hi:"आवाज़ ध्यान से सुनें। आपको कौन सा लॉकर नंबर सुनाई देता है?",bn:"কণ্ঠটি মন দিয়ে শোনো। কোন লকার নম্বর শুনতে পাচ্ছ?",ru:"Внимательно послушай голос. Какой номер шкафчика ты слышишь?"},
+r1:{en:"Before noon, a little practice! The verbs “être” (to be) and “avoir” (to have) are everywhere in French. Answer fast, in rhythm!",
+ es:"Antes del mediodía, ¡un poco de práctica! Los verbos «être» (ser/estar) y «avoir» (tener) están por todas partes. ¡Responde rápido, al ritmo!",
+ pt:"Antes do meio-dia, um pouco de treino! Os verbos «être» (ser/estar) e «avoir» (ter) estão em todo o lado. Responde depressa, ao ritmo!",
+ ar:"قبل الظهر، قليل من التدريب! الفعلان «être» (يكون) و«avoir» (يملك) موجودان في كل مكان في الفرنسية. أجب بسرعة، على الإيقاع!",
+ tr:"Öğlenden önce biraz alıştırma! «être» (olmak) ve «avoir» (sahip olmak) fiilleri Fransızcada her yerde. Hızlı cevap ver, ritme uy!",
+ uk:"До полудня — трохи тренування! Дієслова «être» (бути) та «avoir» (мати) у французькій всюди. Відповідай швидко, у ритмі!",
+ ro:"Înainte de amiază, puțin antrenament! Verbele «être» (a fi) și «avoir» (a avea) sunt peste tot în franceză. Răspunde repede, în ritm!",
+ fa:"پیش از چاشت، کمی تمرین! فعل‌های «être» (بودن) و «avoir» (داشتن) در فرانسوی همه‌جا هستند. زود جواب بدهید، با ریتم!",
+ zh:"中午之前，先练习一下！动词“être”（是）和“avoir”（有）在法语里无处不在。跟着节奏，快速回答！",
+ ur:"دوپہر سے پہلے تھوڑی مشق! فعل «être» (ہونا) اور «avoir» (رکھنا) فرانسیسی میں ہر جگہ ہیں۔ جلدی جواب دیں، تال کے ساتھ!",
+ ps:"له غرمې مخکې لږ تمرین! د «être» (کېدل) او «avoir» (لرل) فعلونه په فرانسوي کې هر ځای دي. ژر ځواب ورکړئ، له ریتم سره!",
+ pa:"ਦੁਪਹਿਰ ਤੋਂ ਪਹਿਲਾਂ ਥੋੜ੍ਹਾ ਅਭਿਆਸ! ਕਿਰਿਆਵਾਂ «être» (ਹੋਣਾ) ਅਤੇ «avoir» (ਕੋਲ ਹੋਣਾ) ਫ਼ਰਾਂਸੀਸੀ ਵਿੱਚ ਹਰ ਥਾਂ ਹਨ। ਤਾਲ ਨਾਲ, ਜਲਦੀ ਜਵਾਬ ਦਿਓ!",
+ az:"Günortadan əvvəl bir az məşq! «être» (olmaq) və «avoir» (malik olmaq) felləri fransız dilində hər yerdədir. Tez cavab ver, ritmlə!",
+ hi:"दोपहर से पहले थोड़ा अभ्यास! क्रियाएँ «être» (होना) और «avoir» (पास होना) फ़्रेंच में हर जगह हैं। ताल के साथ, जल्दी जवाब दें!",
+ bn:"দুপুরের আগে একটু অনুশীলন! «être» (হওয়া) ও «avoir» (থাকা) ক্রিয়া ফরাসিতে সব জায়গায় আছে। তালে তালে দ্রুত উত্তর দাও!",
+ ru:"До полудня — немного тренировки! Глаголы «être» (быть) и «avoir» (иметь) во французском повсюду. Отвечай быстро, в ритме!"}
+};
+
+// Traductions complémentaires (fichier trad.js) : phrases, mots et textes d'interface.
+const PLUS=window.PC_PLUS||{PHRASES:{},MOTS:{},UI:{}};
+Object.assign(MOTS,PLUS.MOTS);
+for(const k in PLUS.PHRASES){PHRASES[k]={};L.forEach((l,i)=>{PHRASES[k][l]=PLUS.PHRASES[k][i]})}
+const ui=k=>{const r=PLUS.UI[k];return r?r[L.indexOf(etat.langue)]:""};
+
+/* ---------- Illustrations (dessin vectoriel, style cartoon à contour épais) ---------- */
+const O='stroke="#2b2233" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"';
+const R=(x,y,w,h,f,rx=0)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="${f}" ${O}/>`;
+const C=(x,y,r,f)=>`<circle cx="${x}" cy="${y}" r="${r}" fill="${f}" ${O}/>`;
+const P=(pts,f)=>`<polygon points="${pts}" fill="${f}" ${O}/>`;
+const Ln=pts=>`<polyline points="${pts}" fill="none" ${O}/>`;
+const T=(x,y,t,s=14,f="#2b2233")=>`<text x="${x}" y="${y}" font-size="${s}" font-weight="800" text-anchor="middle" fill="${f}" font-family="Bricolage Grotesque,Trebuchet MS,sans-serif">${t}</text>`;
+const B=f=>`<rect width="320" height="180" fill="${f}"/>`;
+const cam=(x,y)=>R(x+8,y-8,16,10,"#4a4458",3)+R(x,y,54,36,"#4a4458",6)+C(x+30,y+19,12,"#9fd4f5")+C(x+30,y+19,5,"#2b2233")+R(x+42,y+5,8,5,"#f3a85c",2);
+const tableau=(a,b)=>B("#f7efe2")+R(40,22,240,92,"#2f6b57",4)+T(160,62,a,26,"#ffffff")+T(160,98,b,26,"#ffd166")+R(40,114,240,8,"#b98a5a",2)+R(100,140,120,45,"#d9b98a",4)+R(120,130,36,10,"#e2694f",2);
+const sol=B("#f7efe2")+R(-5,120,330,65,"#e0a85a");
+const DESSINS={
+cour:["La cour de l'école des Tilleuls, un bâtiment au toit rouge et un arbre",
+  B("#aee0f7")+C(36,34,16,"#ffd166")+R(-5,140,330,45,"#8ecf7a")+R(70,50,180,92,"#f7e3b5")+P("60,50 160,14 260,50","#e2694f")+
+  R(145,100,30,42,"#7a5a9e",3)+R(88,66,26,22,"#9fd4f5",2)+R(206,66,26,22,"#9fd4f5",2)+R(88,104,26,22,"#9fd4f5",2)+R(206,104,26,22,"#9fd4f5",2)+
+  C(160,72,13,"#ffffff")+Ln("160,64 160,72 166,76")+R(275,100,10,42,"#8a5a3a")+C(280,88,24,"#4fae6a")],
+couloir:["Un couloir de l'école, des casiers bleus à gauche et une porte au fond",
+  B("#e9dcf5")+P("0,180 320,180 210,110 110,110","#d9b98a")+P("0,30 110,60 110,110 0,180","#7fb2e5")+P("320,30 210,60 210,110 320,180","#f3d9a4")+
+  R(110,60,100,50,"#f7efe2")+R(145,70,30,40,"#7a5a9e",2)+Ln("37,40 37,156")+Ln("74,50 74,133")+C(160,30,8,"#ffd166")],
+casiers:["Une rangée de casiers bleus numérotés de 110 à 114",
+  B("#e9dcf5")+R(-5,150,330,35,"#d9b98a")+[110,111,112,113,114].map((n,i)=>R(20+i*56,24,56,126,n===112?"#5b8fd0":"#7fb2e5",4)+
+  T(48+i*56,50,n,15,"#ffffff")+Ln(`${34+i*56},64 ${62+i*56},64`)+Ln(`${34+i*56},72 ${62+i*56},72`)+R(64+i*56,92,6,14,"#2b2233",2)).join("")],
+enveloppe:["Un casier ouvert avec une enveloppe bleue posée à l'intérieur",
+  B("#3b2a50")+R(60,10,200,160,"#5b8fd0",6)+R(76,26,168,128,"#2f4f80",4)+Ln("76,122 244,122")+R(115,64,90,56,"#8ecbff",4)+Ln("115,64 160,96 205,64")+
+  P("260,10 310,24 310,156 260,170","#7fb2e5")],
+classe:["Une salle de classe, au tableau les verbes être et avoir",tableau("être","avoir")],
+classe2:["Une salle de classe, au tableau les mots où, qui et quand",tableau("Où ? Qui ?","Quand ?")],
+cantine:["La cantine : un comptoir, des plats chauds et une corbeille de pain",
+  B("#fde9c9")+R(20,20,90,56,"#aee0f7",4)+R(230,20,70,30,"#ffffff",4)+T(265,41,"MENU",14)+R(150,74,44,26,"#b9b9c9",4)+R(210,74,44,26,"#b9b9c9",4)+
+  Ln("165,64 170,54 165,44")+Ln("230,64 235,54 230,44")+C(62,76,10,"#f0c078")+C(80,72,11,"#f0c078")+C(94,77,9,"#f0c078")+
+  P("40,100 110,100 100,82 50,82","#c98a4a")+R(-5,100,330,14,"#f7efe2")+R(-5,114,330,70,"#e2694f")],
+journal:["La salle du journal Le Petit Tilleul : un ordinateur sur une table et une place vide à la place de l'appareil photo",
+  B("#e6f0e0")+R(60,12,200,28,"#f3a85c",4)+T(160,32,"Le Petit Tilleul",15)+R(24,56,36,48,"#ffffff",2)+Ln("31,68 53,68")+Ln("31,78 53,78")+
+  R(260,56,36,48,"#ffffff",2)+Ln("267,68 289,68")+Ln("267,78 289,78")+R(70,78,70,46,"#4a4458",4)+R(77,85,56,32,"#9fd4f5",2)+
+  R(40,128,240,12,"#b98a5a",3)+R(54,140,10,45,"#8a5a3a")+R(256,140,10,45,"#8a5a3a")+
+  `<rect x="180" y="90" width="54" height="36" rx="6" fill="none" stroke="#e2694f" stroke-width="3" stroke-dasharray="6 5"/>`+T(207,116,"?",22,"#e2694f")],
+cle:["Une clé avec une étiquette « Gymnase 7 », par terre sous une table",
+  B("#e6f0e0")+R(-5,140,330,45,"#d9b98a")+R(30,30,260,14,"#b98a5a",3)+R(46,44,12,100,"#8a5a3a")+R(262,44,12,100,"#8a5a3a")+
+  Ln("128,112 152,96")+R(150,72,96,26,"#ffffff",4)+T(198,90,"GYMNASE 7",12)+R(138,121,48,6,"#ffd166",2)+R(170,127,5,8,"#ffd166")+R(179,127,5,8,"#ffd166")+
+  C(128,124,12,"#ffd166")+C(128,124,4,"#d9b98a")],
+gymnase:["Le gymnase : un panier de basket, un banc, un ballon et la porte du vestiaire 7",
+  sol+R(130,20,60,40,"#ffffff",3)+R(150,34,20,14,"#ffffff")+`<ellipse cx="160" cy="62" rx="16" ry="5" fill="none" stroke="#e2694f" stroke-width="4"/>`+
+  Ln("146,65 152,84 168,84 174,65")+R(30,108,110,10,"#8a5a3a",2)+R(38,118,8,18,"#8a5a3a")+R(124,118,8,18,"#8a5a3a")+
+  R(270,50,36,70,"#7a5a9e",2)+T(288,44,"7",14)+C(232,134,16,"#f3853c")+Ln("216,134 248,134")],
+sac:["Un sac rouge derrière un banc, l'appareil photo dépasse du sac",
+  sol+cam(138,34)+Ln("140,62 150,46 180,46 190,62")+R(120,62,90,60,"#e2463f",14)+R(40,104,240,12,"#8a5a3a",3)+R(56,116,10,26,"#8a5a3a")+R(254,116,10,26,"#8a5a3a")],
+photo:["Une photo de toute la classe sous une banderole « Bienvenue ! »",
+  B("#3b2a50")+`<g transform="rotate(-3 160 90)">`+R(60,10,200,160,"#ffffff",4)+R(74,22,172,112,"#aee0f7",2)+R(90,30,140,24,"#f3a85c",3)+T(160,47,"Bienvenue !",14)+
+  [["#f2c9a0","#e2694f"],["#c98a5a","#4fae6a"],["#8a5a3a","#ffd166"],["#f2d6b0","#7a5a9e"],["#a86a40","#5b8fd0"]].map((c,i)=>
+    R(87+i*30,104,26,30,c[1],8)+C(100+i*30,92,12,c[0])).join("")+T(160,158,"La classe",13)+`</g>`]
+};
+function dessin(k){
+  const d=DESSINS[k];if(!d)return null;
+  const e=el("div","image");e.innerHTML=`<svg viewBox="0 0 320 180" role="img" aria-label="${d[0]}">${d[1]}</svg>`;return e;
+}
+// Petit schéma pour les mots de lieu : une boîte lilas et une balle ambre.
+function picto(k){
+  const bo=(x,y,w,h)=>R(x,y,w,h,"#b99de3",5),ba=(x,y)=>C(x,y,11,"#f3a85c");
+  const f={sur:bo(40,44,44,30)+ba(62,31),sous:bo(40,10,44,30)+ba(62,58),dans:bo(32,18,60,50)+ba(62,48),
+    derriere:ba(86,36)+bo(40,34,44,36),acote:bo(30,36,44,34)+ba(92,58)}[k];
+  const e=el("div","picto");e.innerHTML=`<svg viewBox="0 0 124 84" role="img" aria-label="Schéma : où est la balle par rapport à la boîte ?">${f}</svg>`;return e;
+}
+
+/* ---------- Personnages et épisodes ---------- */
+const QUI={
+  prof:{nom:"Madame Marion",role:"Professeure de français",img:"prof.jpg"},
+  sami:{nom:"Sami",role:"Élève de ta classe",coul:"var(--ok)",img:"a-sami.jpg"},
+  chloe:{nom:"Chloé",role:"Rédactrice en chef du journal",coul:"var(--ambre)",img:"a-chloe.jpg"},
+  chef:{nom:"M. Bertin",role:"Cuisinier de la cantine",coul:"var(--non)",img:"a-bertin.jpg"},
+  noe:{nom:"Noé",role:"Photographe du journal",coul:"var(--lilas)",img:"a-noe.jpg"}
+};
+// Un mot entre crochets est cliquable : [mot] ou [forme affichée|clé du vocabulaire].
+const EPISODES={
+1:{titre:"Le casier 112",resume:"Premier jour à l'école. Une enveloppe bleue t'attend dans ton casier.",
+ indice:"Indice trouvé : l'enveloppe bleue vient du casier 112",suite:"Prochain épisode : « L'appareil disparu »",etapes:[
+ {t:"lieu",nom:"La cour",heure:"8 h 05",img:"cour"},
+ {t:"dit",qui:"prof",fr:"Bonjour {nom} ! [Bienvenue|bienvenue] à l'[école] des Tilleuls. Je suis Madame Marion, ta [professeure] de français.",tr:"p1"},
+ {t:"dit",qui:"prof",fr:"Ici, tu vas [apprendre] le français en vivant une histoire. Touche un [mot] souligné pour voir sa traduction.",tr:"p2"},
+ {t:"dit",qui:"prof",fr:"Tu as besoin d'[aide] ? Le bouton « Traduire » traduit chaque phrase dans ta langue.",tr:"p3"},
+ {t:"dit",qui:"prof",fr:"Le bouton « Écouter » te fait [écouter] la phrase. On y va ? Ton premier [jour] commence !",tr:"p4"},
+
+ {t:"lieu",nom:"Le couloir",heure:"8 h 20",img:"couloir"},
+ {t:"choix",qui:"sami",fr:"[Salut|salut] ! C'est ton premier [jour] ? Moi, c'est Sami.",tr:"s1",etoile:1,options:[
+   {fr:"Salut Sami ! Je m'appelle {nom}.",ok:1,retour:"Parfait ! Entre élèves, on dit « salut » et on se tutoie."},
+   {fr:"Bonjour monsieur. Comment allez-vous ?",retour:"Trop formel ! « Monsieur » et « vous », c'est pour les adultes. Sami a ton âge."},
+   {fr:"Au revoir Sami !",retour:"« Au revoir », c'est pour partir. Pour dire bonjour à un ami, on dit « salut »."}]},
+ {t:"dit",qui:"sami",fr:"Enchanté, {nom} ! Tu es à Port-Clair depuis longtemps ?"},
+ {t:"dit",qui:"prof",fr:"Remets les mots dans l'ordre pour répondre à Sami.",tr:"o1"},
+ {t:"ordre",mots:["Non,","je","viens","d'arriver","à","Port-Clair."],aide:"Astuce : « viens d'arriver » va ensemble. Le lieu est à la fin."},
+ {t:"dit",qui:"sami",fr:"Ah, tout nouveau ! Tu cherches quelque chose ?"},
+ {t:"ordre",mots:["Oui,","je","cherche","mon","casier."],aide:"Astuce : après « Oui, », on dit qui fait l'action (je), puis l'action (cherche), puis la chose (mon casier)."},
+ {t:"dit",qui:"sami",fr:"Les [casiers|casier] sont au fond du [couloir]. Viens, je te montre !"},
+
+ {t:"lieu",nom:"Les casiers",heure:"8 h 30",img:"casiers"},
+ {t:"dit",qui:null,fr:"Tu ouvres ton casier. À l'intérieur, il y a une [enveloppe] bleue.",img:"enveloppe"},
+ {t:"billet",fr:"[Rendez-vous|rendez-vous] à [midi] à la [cantine]. J'ai un [secret] à te dire.",signe:"Quelqu'un qui te veut du bien"},
+ {t:"dit",qui:"sami",fr:"Bizarre… Il n'y a pas de [nom]. Mais attends : j'entends quelqu'un derrière la [porte] !"},
+ {t:"dit",qui:"prof",fr:"Écoute bien la voix. Quel numéro de casier entends-tu ?",tr:"l1"},
+ {t:"ecoute",audio:"Vite ! Mets la lettre dans le casier cent douze.",question:"Quel numéro de casier ?",options:["102","112","120"],ok:"112",bravo:"Oui ! Cent douze. Cent, plus douze."},
+ {t:"ecoute",audio:"On se retrouve à la cantine à midi et quart.",question:"À quelle heure ?",options:["12 h 15","12 h 30","12 h 45"],ok:"12 h 15",bravo:"Exact ! Midi et quart, c'est douze heures quinze."},
+ {t:"dit",qui:"sami",fr:"Le casier 112… c'est juste à côté du tien ! On saura tout à midi et quart."},
+
+ {t:"lieu",nom:"Salle 12",heure:"10 h 00",img:"classe"},
+ {t:"dit",qui:"prof",fr:"Avant [midi], un peu d'[entraînement] ! Les verbes « être » et « avoir » sont partout en français. Réponds vite, au rythme !",tr:"r1"},
+ {t:"rythme",titre:"Rythme · être et avoir",items:[
+   ["Je","en retard.","suis",["es","est"]],["Tu","mon ami.","es",["est","êtes"]],["Sami","sympa.","est",["es","sont"]],
+   ["Nous","à l'école.","sommes",["sont","êtes"]],["Vous","professeure ?","êtes",["est","sommes"]],["Les casiers","bleus.","sont",["est","sommes"]],
+   ["J'","un secret.","ai",["as","a"]],["Tu","une enveloppe.","as",["a","ai"]],["Elle","le casier 112.","a",["as","ont"]],
+   ["Nous","rendez-vous à midi.","avons",["avez","ont"]]]},
+
+ {t:"lieu",nom:"La cantine",heure:"12 h 15",img:"cantine"},
+ {t:"dit",qui:null,fr:"Midi et quart. La [cantine] est pleine. Ça sent bon le [pain] chaud."},
+ {t:"choix",qui:"chef",fr:"Bonjour ! Qu'est-ce que tu veux [manger] ?",etoile:1,options:[
+   {fr:"Donne-moi à manger.",retour:"Aïe, c'est impoli ! Avec un adulte, on dit « je voudrais… s'il vous plaît »."},
+   {fr:"Bonjour ! Je voudrais le plat du jour, s'il vous plaît.",ok:1,retour:"Bravo ! « Je voudrais » et « s'il vous plaît » : poli et parfait avec un adulte."},
+   {fr:"Salut ! Tu vas bien ?",retour:"Avec un adulte qu'on ne connaît pas, on dit « bonjour » et « vous »."}]},
+ {t:"dit",qui:"chloe",fr:"C'est toi, {nom} ? Je suis Chloé… casier 112. L'enveloppe bleue, c'est moi."},
+ {t:"choix",qui:"chloe",fr:"Je dirige le [journal] de l'école, « Le Petit Tilleul ». On cherche quelqu'un qui vient d'ailleurs, avec un regard neuf. Tu veux nous rejoindre ?",options:[
+   {fr:"Oui, avec plaisir !",ok:1},{fr:"Pourquoi pas… Explique-moi !",ok:1}]},
+ {t:"dit",qui:"chloe",fr:"Génial ! Mais il y a un [problème]. Ce matin, l'appareil photo du journal a disparu…",img:"journal"},
+ {t:"dit",qui:"sami",fr:"Disparu ? Alors c'est une vraie [enquête] !",img:"journal"},
+ {t:"dit",qui:"prof",fr:"Bravo {nom} ! Tu sais te présenter, saluer un ami ou un adulte, et tu connais « être » et « avoir ». La suite dans l'épisode 2 : « L'appareil disparu »."},
+ {t:"fin"}]},
+
+2:{titre:"L'appareil disparu",resume:"L'appareil photo du journal a disparu. Pose les bonnes questions et suis les indices.",
+ indice:"Mystère résolu : Noé préparait une surprise pour toi",suite:"Prochain épisode : « L'interview »",etapes:[
+ {t:"lieu",nom:"La salle du journal",heure:"12 h 40",img:"journal"},
+ {t:"dit",qui:"chloe",fr:"Voici la [salle] du journal. Ce matin, l'[appareil photo] était sur cette [table]."},
+ {t:"dit",qui:"prof",fr:"Une enquête ? Parfait pour apprendre à poser une [question] ! « Où », pour un lieu. « Qui », pour une personne. « Quand », pour un moment."},
+ {t:"choix",qui:"chloe",fr:"Alors, détective {nom}, pose-moi ta première question !",etoile:1,options:[
+   {fr:"Qui est l'appareil photo ?",retour:"« Qui », c'est pour une personne. Pour un lieu, on dit « où »."},
+   {fr:"Où était l'appareil photo ?",ok:1,retour:"Très bien ! « Où » sert à demander un lieu."},
+   {fr:"Quand est l'appareil photo ?",retour:"« Quand », c'est pour un moment. Pour un lieu, on dit « où »."}]},
+ {t:"dit",qui:"chloe",fr:"Sur la table, à côté de l'[ordinateur]. À dix heures, il était là. À midi, plus rien !"},
+ {t:"dit",qui:null,fr:"Tu regardes partout. Sous la table, il y a une [clé] avec une étiquette.",img:"cle"},
+ {t:"dit",qui:"prof",fr:"Dis à Chloé ce que tu vois. Remets les mots dans l'ordre.",img:"cle"},
+ {t:"ordre",mots:["La","clé","est","sous","la","table."],aide:"Astuce : « La clé » (la chose) + « est » (le verbe) + « sous la table » (le lieu)."},
+ {t:"ordre",mots:["Il","y","a","une","étiquette","sur","la","clé."],aide:"Astuce : « Il y a » va ensemble au début. Ensuite, on dit quoi, puis où."},
+ {t:"dit",qui:"sami",fr:"« Gymnase, vestiaire 7 ». On y va après le cours de Madame Marion !",img:"cle"},
+
+ {t:"lieu",nom:"Salle 12",heure:"13 h 30",img:"classe2"},
+ {t:"dit",qui:"prof",fr:"Où, qui, quand… et sur, sous, dans, derrière ! Regarde le dessin et réponds vite, au rythme."},
+ {t:"rythme",titre:"Rythme · questions et lieux",items:[
+   ["","est l'appareil ? Dans le sac.","Où",["Qui","Quand"]],
+   ["La clé est","la table.","sous",["sur","dans"],"sous"],
+   ["","a pris l'appareil ? Un élève.","Qui",["Où","Quand"]],
+   ["L'ordinateur est","la table.","sur",["sous","derrière"],"sur"],
+   ["","est le rendez-vous ? À midi.","Quand",["Où","Qui"]],
+   ["L'appareil est","le sac.","dans",["sur","sous"],"dans"],
+   ["","est Madame Marion ? En salle 12.","Où",["Qui","Quand"]],
+   ["Le sac est","le banc.","derrière",["dans","sur"],"derriere"],
+   ["","dirige le journal ? Chloé.","Qui",["Quand","Où"]],
+   ["Le ballon est","banc.","à côté du",["dans le","sur le"],"acote"]]},
+
+ {t:"lieu",nom:"Le gymnase",heure:"16 h 05",img:"gymnase"},
+ {t:"dit",qui:"sami",fr:"Voilà le [gymnase]. Chut… quelqu'un parle dans le vestiaire 7 !"},
+ {t:"dit",qui:"prof",fr:"Écoute bien la voix. Où est l'appareil ?"},
+ {t:"ecoute",audio:"L'appareil est dans le sac rouge, derrière le banc.",question:"Où est l'appareil ?",options:["Sur le banc","Dans le sac rouge","Sous le sac bleu"],ok:"Dans le sac rouge",bravo:"Oui ! Dans le sac rouge, derrière le banc."},
+ {t:"ecoute",audio:"Je rends l'appareil à seize heures trente, promis.",question:"À quelle heure ?",options:["6 h 30","16 h 30","13 h 30"],ok:"16 h 30",bravo:"Exact ! Seize heures trente, c'est quatre heures et demie de l'après-midi."},
+ {t:"dit",qui:null,fr:"Derrière le [banc], il y a un [sac] [rouge]. Dedans : l'appareil photo !",img:"sac"},
+ {t:"choix",qui:"noe",fr:"Oh ! Pardon… Je suis Noé. J'ai pris l'appareil sans demander.",img:"sac",etoile:1,options:[
+   {fr:"Merci beaucoup !",retour:"On dit « merci » pour un cadeau. Quand quelqu'un s'excuse, on répond « ce n'est pas grave »."},
+   {fr:"Ce n'est pas grave. Mais la prochaine fois, demande !",ok:1,retour:"Parfait ! « Ce n'est pas grave », c'est la réponse à « pardon »."},
+   {fr:"Bon appétit !",retour:"« Bon appétit », c'est avant de manger ! Ici, Noé s'excuse."}]},
+ {t:"dit",qui:"noe",fr:"Je voulais faire une [surprise] : une [photo] de toute la classe, pour toi. Regarde !",img:"photo"},
+ {t:"dit",qui:"chloe",fr:"Mystère résolu ! Et voilà ton premier article pour le journal : « Le secret du vestiaire 7 ».",img:"photo"},
+ {t:"dit",qui:"prof",fr:"Bravo {nom} ! Tu sais poser une question avec « où », « qui » et « quand », et dire où sont les choses. La suite dans l'épisode 3 : « L'interview »."},
+ {t:"fin"}]},
+3:{titre:"L'interview",resume:"Le journal prépare son prochain numéro : tu es le reporter ! Interroge le cuisinier et la prof de sport sur ce qu'ils aiment.",
+ indice:"Article terminé : « Ce qu'on aime à l'école ». Mais pourquoi Sami arrive-t-il en retard le lundi ?",suite:"Prochain épisode : « En retard ! »",etapes:[
+ {t:"lieu",nom:"La salle du journal",heure:"8 h 15",img:"journal"},
+ {t:"dit",qui:"chloe",fr:"Bonne nouvelle, {nom} ! Pour le prochain numéro, on fait une [interview]. Tu es le reporter !",img:"journal"},
+ {t:"dit",qui:"prof",fr:"Pour parler de ses goûts, on utilise [aimer], [adorer], [détester] et [préférer]. Et « parce que » pour expliquer pourquoi.",img:"journal"},
+ {t:"choix",qui:"chloe",fr:"Ta première interview, c'est M. Bertin, le cuisinier. Comment lui demandes-tu ce qu'il aime ?",etoile:1,img:"journal",options:[
+   {fr:"Tu aimes la cuisine, monsieur ?",retour:"M. Bertin est un adulte : on dit « vous », pas « tu »."},
+   {fr:"Vous aimez la cuisine, monsieur ?",ok:1,retour:"Très bien ! Avec un adulte, on dit « vous »."},
+   {fr:"Il aime la cuisine, monsieur ?",retour:"Tu parles à M. Bertin, pas de lui : on dit « vous »."}]},
+
+ {t:"lieu",nom:"La cantine",heure:"11 h 50",img:"cantine"},
+ {t:"dit",qui:"chef",fr:"Bonjour ! Oui, j'[adore] la [cantine] et mon pain. Mais je [déteste] la vaisselle !",img:"cantine"},
+ {t:"dit",qui:"prof",fr:"Dis à M. Bertin ce que tu aimes, toi. Remets les mots dans l'ordre.",img:"cantine"},
+ {t:"ordre",mots:["J'adore","la","musique."],aide:"Astuce : « J'adore » + « la musique »."},
+ {t:"ordre",mots:["Je","déteste","les","maths","parce","que","c'est","difficile."],aide:"Astuce : « Je déteste les maths » d'abord, puis « parce que c'est difficile » pour expliquer."},
+ {t:"dit",qui:"chef",fr:"Le [sport], c'est bien ! Et la [musique] ? Dans ma cuisine, j'écoute toujours de la musique.",img:"cantine"},
+
+ {t:"lieu",nom:"Salle 12",heure:"13 h 30",img:"classe2"},
+ {t:"dit",qui:"prof",fr:"Aimer, adorer, détester, préférer : le verbe change avec la personne. Choisis la bonne forme, au rythme.",img:"classe2"},
+ {t:"rythme",titre:"Rythme · aimer, adorer, détester",items:[
+   ["J'","le sport.","aime",["aimes","aiment"]],
+   ["Tu","la musique ?","aimes",["aime","aimez"]],
+   ["Il","les maths.","adore",["adores","adorent"]],
+   ["Nous","le français.","aimons",["aimez","aiment"]],
+   ["Elle","les sciences.","déteste",["détestes","détestent"]],
+   ["Vous","la cantine ?","aimez",["aime","aimons"]],
+   ["Ils","le sport.","adorent",["adore","adorons"]],
+   ["Je","la musique au sport.","préfère",["préfères","préférons"]]]},
+
+ {t:"lieu",nom:"La cour",heure:"15 h 10",img:"cour"},
+ {t:"dit",qui:"sami",fr:"Chloé a enregistré l'interview de la prof de sport. Écoute bien !",img:"cour"},
+ {t:"ecoute",audio:"J'adore le sport parce que c'est amusant, mais je déteste les maths : c'est difficile.",question:"Qu'est-ce qu'elle déteste ?",options:["Le sport","Les maths","La musique"],ok:"Les maths",bravo:"Oui ! Elle déteste les maths, parce que c'est difficile."},
+ {t:"ecoute",audio:"Ma matière préférée, c'est la musique. J'ai cours le jeudi à dix heures.",question:"Quel jour a-t-elle cours de musique ?",options:["Lundi","Jeudi","Mardi"],ok:"Jeudi",bravo:"Exact ! Le jeudi, à dix heures."},
+ {t:"lieu",nom:"La salle du journal",heure:"16 h 20",img:"journal"},
+ {t:"choix",qui:"chloe",fr:"Dernière question, {nom} : pour l'article, explique pourquoi tu aimes la musique !",etoile:1,img:"journal",options:[
+   {fr:"J'aime la musique mais c'est joli.",retour:"« Mais » oppose deux idées. Pour expliquer, on dit « parce que »."},
+   {fr:"J'aime la musique parce que c'est joli.",ok:1,retour:"Parfait ! « Parce que » donne la raison."},
+   {fr:"J'aime la musique ou c'est joli.",retour:"« Ou » propose un choix. Pour expliquer, on dit « parce que »."}]},
+ {t:"dit",qui:"chloe",fr:"Ton article est parfait ! Mais un mystère reste : pourquoi Sami arrive-t-il en retard tous les lundis ?",img:"journal"},
+ {t:"dit",qui:"prof",fr:"Bravo {nom} ! Tu sais dire ce que tu aimes et ce que tu détestes, et expliquer avec « parce que ». La suite dans l'épisode 4 : « En retard ! »."},
+ {t:"fin"}]},
+4:{titre:"En retard !",resume:"Sami arrive en retard tous les lundis. Lis l'emploi du temps, demande l'heure et découvre pourquoi.",
+ indice:"Mystère résolu : Sami dépose sa petite sœur à l'école tous les lundis",suite:"Prochain épisode : « Le plan de l'école »",etapes:[
+ {t:"lieu",nom:"Le couloir",heure:"8 h 20",img:"couloir"},
+ {t:"dit",qui:"chloe",fr:"Lundi, huit heures vingt. Sami n'est pas là ! Le cours de maths a commencé à huit heures. Il est [en retard].",img:"couloir"},
+ {t:"dit",qui:"prof",fr:"Pour dire l'[heure], on dit « huit heures vingt », « midi et quart », « seize heures trente ». Pour demander : « Quelle heure est-il ? »",img:"couloir"},
+ {t:"choix",qui:"prof",fr:"Sami arrive ! Comment demande-t-on l'heure ?",etoile:1,img:"couloir",options:[
+   {fr:"Quel âge as-tu ?",retour:"Cette question demande l'âge, pas l'heure."},
+   {fr:"Quelle heure est-il ?",ok:1,retour:"Très bien ! C'est la question pour demander l'heure."},
+   {fr:"Où est l'heure ?",retour:"On ne demande pas l'heure avec « où ». On dit : « Quelle heure est-il ? »"}]},
+ {t:"dit",qui:"sami",fr:"Pardon, je suis en retard ! Le lundi, c'est compliqué… Regarde mon [emploi du temps] !",img:"couloir"},
+ {t:"choix",qui:"chloe",fr:"Pose-lui la bonne question pour comprendre.",img:"couloir",options:[
+   {fr:"Qui est en retard le lundi ?",retour:"On sait déjà que c'est Sami. On cherche la raison : « pourquoi »."},
+   {fr:"Pourquoi tu es en retard le lundi ?",ok:1,retour:"Parfait ! « Pourquoi » demande une raison."},
+   {fr:"Où tu es en retard le lundi ?",retour:"« Où » demande un lieu. Pour une raison, on dit « pourquoi »."}]},
+ {t:"dit",qui:"chloe",fr:"Cherchons des indices dans son emploi du temps. Remets les mots dans l'ordre.",img:"couloir"},
+ {t:"ordre",mots:["Le","lundi,","j'ai","maths","à","huit","heures."],aide:"Astuce : « Le lundi, » + « j'ai maths » + « à huit heures »."},
+ {t:"ordre",mots:["Le","matin,","je","prends","le","bus."],aide:"Astuce : « Le matin, » + « je prends » + « le bus »."},
+
+ {t:"lieu",nom:"Salle 12",heure:"13 h 30",img:"classe2"},
+ {t:"dit",qui:"prof",fr:"Au présent, le verbe change avec la personne. Choisis la bonne forme, au rythme.",img:"classe2"},
+ {t:"rythme",titre:"Rythme · le présent d'habitude",items:[
+   ["Le cours","à huit heures.","commence",["commences","commencent"]],
+   ["J'","en retard.","arrive",["arrives","arrivent"]],
+   ["Tu","le bus.","prends",["prend","prenons"]],
+   ["Il","à midi.","mange",["manges","mangent"]],
+   ["Nous","à seize heures.","finissons",["finissez","finissent"]],
+   ["Elles","à huit heures.","arrivent",["arrive","arrivons"]],
+   ["Vous","le bus ?","prenez",["prends","prennent"]],
+   ["Le bus","à sept heures.","part",["pars","partent"]]]},
+
+ {t:"lieu",nom:"Devant l'école d'Inès",heure:"7 h 50",img:"cour"},
+ {t:"dit",qui:"sami",fr:"Voilà ma petite [sœur], Inès. Le lundi, je la dépose avant les cours. Écoute le message de ma mère !",img:"cour"},
+ {t:"ecoute",audio:"Sami, Inès commence à huit heures. Dépose-la à sept heures cinquante, s'il te plaît.",question:"À quelle heure Inès commence-t-elle l'école ?",options:["8 h 00","7 h 50","8 h 50"],ok:"8 h 00",bravo:"Oui ! Inès commence à huit heures. Sami la dépose à sept heures cinquante."},
+ {t:"choix",qui:"prof",fr:"{nom}, pourquoi Sami est-il en retard le lundi ?",etoile:1,img:"cour",options:[
+   {fr:"Il est en retard mais il dépose sa sœur à l'école.",retour:"« Mais » oppose deux idées. Pour donner la raison, on dit « parce que »."},
+   {fr:"Il est en retard parce qu'il dépose sa sœur à l'école.",ok:1,retour:"Parfait ! « Parce que » donne la raison."},
+   {fr:"Il est en retard ou il dépose sa sœur à l'école.",retour:"« Ou » propose un choix. Pour donner la raison, on dit « parce que »."}]},
+ {t:"dit",qui:"prof",fr:"Je comprends. Écoute : on change l'heure pour le lundi.",img:"cour"},
+ {t:"ecoute",audio:"Le lundi, le premier cours est à huit heures dix. Tu peux arriver à huit heures dix, mais préviens-moi.",question:"À quelle heure Sami peut-il arriver le lundi ?",options:["8 h 10","8 h 50","18 h 10"],ok:"8 h 10",bravo:"Exact ! Huit heures dix, et il doit prévenir Madame Marion."},
+
+ {t:"lieu",nom:"La salle du journal",heure:"16 h 20",img:"journal"},
+ {t:"dit",qui:"chloe",fr:"Mystère résolu ! Au fait, ce matin, un nouvel élève s'est perdu dans l'école. Pour le prochain numéro, on fait le plan de l'école !",img:"journal"},
+ {t:"dit",qui:"prof",fr:"Bravo {nom} ! Tu sais dire l'heure, demander « Quelle heure est-il ? » et expliquer un retard avec « parce que ». La suite dans l'épisode 5 : « Le plan de l'école »."},
+ {t:"fin"}]}
+};
+Object.assign(QUI,window.QUI_PLUS||{});Object.assign(EPISODES,window.EPS_PLUS||{});
+const ETOILES_MAX=9;
+// Chaque phrase de l'histoire a sa traduction : les clés suivent l'ordre des répliques.
+[[1,"a",14],[2,"b",15],[3,"c",11],[4,"d",12],[5,"f",8],[6,"g",8],[7,"h",8],[8,"i",8],[9,"k",8],[10,"l",8]].forEach(([n,pre,nb])=>{
+  let c=0;EPISODES[n].etapes.forEach(p=>{if(["dit","choix","billet"].includes(p.t)&&!p.tr)p.tr=pre+(++c)});
+  if(c!==nb)console.warn("Traductions : épisode "+n+", "+c+" répliques pour "+nb+" clés");
+});
+
+/* ---------- État, sauvegarde et outils ---------- */
+const $=s=>document.querySelector(s);
+const scene=$("#scene");
+function lire(k){try{return localStorage.getItem(k)}catch(e){return null}}
+function garder(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+// La sauvegarde vit dans le navigateur de l'appareil : prénom, langue, cartes, et pour chaque épisode l'étape en cours.
+let sauve={nom:"",langue:"en",voix:true,cartes:[],eps:{}};
+try{const s=JSON.parse(lire("pc-sauve")||"null");if(s&&typeof s==="object")sauve=Object.assign(sauve,s)}catch(e){}
+if(!L.includes(sauve.langue))sauve.langue="en";
+if(!sauve.eps||typeof sauve.eps!=="object")sauve.eps={};
+const etat={ep:1,i:0,etoiles:0,nom:sauve.nom||"",langue:sauve.langue,voix:sauve.voix!==false,
+  cartes:new Set((sauve.cartes||[]).filter(k=>MOTS[k])),img:null};
+let nettoyage=null; // arrête le chrono d'un mini-jeu quand on quitte l'étape
+function enregistrer(){
+  sauve.nom=etat.nom;sauve.langue=etat.langue;sauve.voix=etat.voix;sauve.cartes=[...etat.cartes];
+  garder("pc-sauve",JSON.stringify(sauve));
+}
+const partie=n=>sauve.eps[n]||(sauve.eps[n]={i:0,etoiles:0,fini:false,meilleur:0});
+const etapes=()=>EPISODES[etat.ep].etapes;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const avecNom=s=>s.replace(/\{nom\}/g,etat.nom);
+const brut=s=>avecNom(s).replace(/\[([^\]|]+)(\|[^\]]+)?\]/g,"$1");
+function riche(s){
+  return esc(avecNom(s)).replace(/\[([^\]|]+)(?:\|([^\]]+))?\]/g,(m,a,b)=>
+    `<button class="mot" data-k="${(b||a).toLowerCase()}">${a}</button>`);
+}
+function el(tag,cls,html){const e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e}
+function melange(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+const attrLangue=()=>`lang="${etat.langue}"${RTL[etat.langue]?' dir="rtl"':""}`;
+const traduction=k=>MOTS[k][L.indexOf(etat.langue)+1];
+
+/* Voix : synthèse vocale en attendant les enregistrements de Madame Marion. */
+const synth=("speechSynthesis" in window)?window.speechSynthesis:null;
+let voixFr=null;
+function chercheVoix(){if(!synth)return;const v=synth.getVoices();voixFr=v.find(x=>/^fr[-_]FR/i.test(x.lang))||v.find(x=>/^fr/i.test(x.lang))||null}
+if(synth){chercheVoix();try{synth.addEventListener("voiceschanged",chercheVoix)}catch(e){}}
+function parler(texte,fini){
+  if(!synth){if(fini)fini();return false}
+  try{
+    synth.cancel();
+    const u=new SpeechSynthesisUtterance(texte);u.lang="fr-FR";u.rate=.92;if(voixFr)u.voice=voixFr;
+    u.onend=u.onerror=()=>{if(fini)fini()};
+    synth.speak(u);return true;
+  }catch(e){if(fini)fini();return false}
+}
+function silence(){try{if(synth)synth.cancel()}catch(e){}}
+
+function avatar(id){
+  const q=QUI[id],a=el("span","avatar");
+  if(q.img){const im=new Image();im.src=q.img;im.alt="";if(q.img!=="prof.jpg")im.className="photo";a.append(im)}
+  else{a.textContent=q.nom.replace("M. ","")[0];a.style.background=q.coul}
+  return a;
+}
+function entete(id){
+  const q=QUI[id],d=el("div","qui"),a=avatar(id);
+  d.append(a,el("span","nom",`${esc(q.nom)}<span class="role">${esc(q.role)}</span>`));
+  d._avatar=a;return d;
+}
+function majHaut(){
+  $("#nb-etoiles").textContent=etat.etoiles;
+  $("#nb-cartes").textContent=etat.cartes.size;
+  $("#jauge").style.width=Math.round(etat.i/(etapes().length-1)*100)+"%";
+}
+function etoile(n){etat.etoiles+=n;majHaut()}
+
+/* Réplique : image du lieu, bulle, outils Écouter / Traduire, tiroir du mot touché. */
+function nouveauTiroir(){const t=el("div","tiroir");t.hidden=true;t.setAttribute("aria-live","polite");return t}
+function replique(p){
+  const frag=document.createDocumentFragment();
+  const im=dessin(p.img||etat.img);if(im)frag.append(im);
+  let tete=null;
+  if(p.qui){tete=entete(p.qui);frag.append(tete)}
+  frag.append(el("p","bulle"+(p.qui?"":" recit"),riche(p.fr)));
+  const outils=el("div","outils");
+  const be=el("button","outil","Écouter");
+  const dire=()=>{const a=tete&&tete._avatar;if(a)a.classList.add("parle");
+    parler(brut(p.fr),()=>{if(a)a.classList.remove("parle")})};
+  be.onclick=dire;outils.append(be);
+  let trad=null;
+  if(p.tr&&PHRASES[p.tr]&&PHRASES[p.tr][etat.langue]){
+    const bt=el("button","outil","Traduire");
+    trad=el("p","trad");trad.hidden=true;trad.textContent=avecNom(PHRASES[p.tr][etat.langue]);
+    trad.lang=etat.langue;if(RTL[etat.langue])trad.dir="rtl";
+    bt.onclick=()=>{trad.hidden=!trad.hidden};outils.append(bt);
+  }
+  frag.append(outils);if(trad)frag.append(trad);
+  frag.append(nouveauTiroir());
+  if(p.qui==="prof"&&etat.voix)setTimeout(dire,150);
+  return frag;
+}
+// Toucher un mot : traduction, écoute, et carte gagnée la première fois.
+scene.addEventListener("click",e=>{
+  const b=e.target.closest(".mot");if(!b)return;
+  const k=b.dataset.k,m=MOTS[k];if(!m)return;
+  const tiroir=scene.querySelector(".tiroir");if(!tiroir)return;
+  const neuf=!etat.cartes.has(k);etat.cartes.add(k);majHaut();if(neuf)enregistrer();
+  tiroir.innerHTML=`<span class="fr">${esc(m[0])}</span><span aria-hidden="true">→</span>`+
+    `<span class="vers" ${attrLangue()}>${esc(traduction(k))}</span>`+(neuf?`<span class="neuf">Carte gagnée</span>`:"");
+  tiroir.hidden=false;parler(m[0]);
+});
+/* Modèles d'explication : français ici, traductions dans PC_PLUS.UI (clés h_*, r_*, m_*). {a} et {b} sont remplacés. */
+const FR={h_legend:"Vert = bien placé. Rouge = à déplacer.",h_maj:"Une phrase commence par une majuscule. Cherche le mot avec une majuscule.",
+ h_first:"Ce n'est pas le bon premier mot. Pense au début de la phrase.",h_end:"La phrase se termine par {a}. Cherche le dernier mot.",
+ h_subj:"Le sujet « {a} » vient juste avant le verbe « {b} ».",h_ok:"Bien : mots bien placés depuis le début : {a}.",
+ r_ok:"Bonne réponse",r_ko:"Ta réponse",r_time:"Le temps est fini : tu n'as pas répondu.",r_goes:"« {a} » va avec : {b}.",
+ r_je:"Avec « je », le verbe finit souvent par -e.",r_tu:"Avec « tu », le verbe finit souvent par -s.",r_il:"Avec « il » ou « elle », le verbe finit souvent par -e ou -t.",
+ r_nous:"Avec « nous », le verbe finit par -ons.",r_vous:"Avec « vous », le verbe finit par -ez.",r_ils:"Avec « ils » ou « elles », le verbe finit par -ent.",
+ r_q:"« {a} » sert à demander {b}.",r_lieu:"Regarde le dessin : « {a} » veut dire {b}.",
+ m_lieu:"un lieu",m_pers:"une personne",m_moment:"un moment",m_dessus:"au-dessus",m_dessous:"en dessous",m_dedans:"à l'intérieur",m_derriere:"à l'arrière",m_pres:"tout près, à côté"};
+// Une ligne est un texte français ou {k:clé, v:{a,b}} ; une valeur « @clé » est elle-même un modèle.
+function ligne(m,traduit){
+  if(typeof m==="string")return m;
+  const t=traduit?ui(m.k):FR[m.k];if(!t)return "";
+  return t.replace(/\{(\w)\}/g,(_,x)=>{let v=m.v&&m.v[x];if(v==null)return "";
+    return String(v).startsWith("@")?(traduit?ui(v.slice(1)):FR[v.slice(1)])||"":v});
+}
+// Bouton « Traduire » : montre les lignes traduites dans la langue du joueur.
+function boutonTraduire(lignes,pre){
+  if(!lignes.some(m=>typeof m!=="string"&&ui(m.k)))return null;
+  const o=el("div","outils"),b=el("button","outil","Traduire"),tr=el("div","trad");
+  tr.hidden=true;tr.lang=etat.langue;if(RTL[etat.langue])tr.dir="rtl";
+  tr.innerHTML=(pre||[]).concat(lignes.map(m=>typeof m==="string"?"":ligne(m,true))).filter(Boolean).map(x=>`<p>${esc(x)}</p>`).join("");
+  b.onclick=()=>{tr.hidden=!tr.hidden;b.setAttribute("aria-expanded",!tr.hidden)};
+  b.setAttribute("aria-expanded","false");o.append(b);
+  return [o,tr];
+}
+function retourProf(texte,ok){
+  const r=el("div","retour "+(ok?"ok":"non"));
+  const lignes=[].concat(texte),fr=lignes.map(m=>ligne(m,false)).filter(Boolean);
+  const corps=el("div","corps");
+  corps.append(el("p",null,fr.map(esc).join("<br>")));
+  const t=boutonTraduire(lignes);if(t)corps.append(...t);
+  r.append(avatar("prof"),corps);
+  if(etat.voix)parler(fr.join(" "));
+  return r;
+}
+function boutonSuite(texte){const b=el("button","btn",texte||"Continuer");b.onclick=suivant;return b}
+function quitteEtape(){silence();if(nettoyage){nettoyage();nettoyage=null}}
+function suivant(){quitteEtape();etat.i++;afficher()}
+
+/* ---------- Affichage des étapes ---------- */
+function poseLieu(p){$("#lieu").innerHTML=`${esc(p.nom)}<small>${esc(p.heure)}</small>`;etat.img=p.img||null}
+function afficher(){
+  let p=etapes()[etat.i];
+  while(p.t==="lieu"){poseLieu(p);etat.i++;p=etapes()[etat.i]}
+  // Sauvegarde automatique à chaque étape.
+  const s=partie(etat.ep);s.i=etat.i;s.etoiles=etat.etoiles;enregistrer();
+  majHaut();scene.innerHTML="";window.scrollTo(0,0);
+  ({dit:vueDit,choix:vueChoix,ordre:vueOrdre,billet:vueBillet,ecoute:vueEcoute,rythme:vueRythme,fin:vueFin})[p.t](p);
+}
+function zoneActions(){const a=el("div","actions");scene.append(a);return a}
+function vueDit(p){scene.append(replique(p));zoneActions().append(boutonSuite())}
+function vueBillet(p){
+  scene.append(el("div","billet",riche(p.fr)+`<span class="signe">${esc(p.signe)}</span>`));
+  const t=PHRASES[p.tr]&&PHRASES[p.tr][etat.langue];
+  if(t){
+    const o=el("div","outils"),b=el("button","outil","Traduire"),tr=el("p","trad");
+    tr.hidden=true;tr.textContent=avecNom(t);tr.lang=etat.langue;if(RTL[etat.langue])tr.dir="rtl";
+    b.onclick=()=>{tr.hidden=!tr.hidden};o.append(b);scene.append(o,tr);
+  }
+  scene.append(nouveauTiroir());zoneActions().append(boutonSuite());
+}
+function vueChoix(p){
+  scene.append(replique(p));
+  const a=zoneActions();let premier=true;
+  const zone=el("div");zone.setAttribute("aria-live","polite");
+  p.options.forEach(o=>{
+    const b=el("button","choix",esc(avecNom(o.fr)));
+    b.onclick=()=>{
+      zone.innerHTML="";
+      if(o.ok){
+        a.querySelectorAll(".choix").forEach(x=>x.disabled=true);b.classList.add("bon");
+        if(premier&&p.etoile)etoile(p.etoile);
+        if(o.retour)zone.append(retourProf(o.retour,true));
+        a.append(boutonSuite());
+      }else{premier=false;b.classList.add("faux");b.disabled=true;zone.append(retourProf(o.retour,false))}
+    };
+    a.append(b);
+  });
+  a.append(zone);
+}
+// Indices pour se corriger : on compare l'essai à la bonne phrase (niveau A1, phrases courtes).
+const PRONOMS=["je","tu","il","elle","on","nous","vous","ils","elles"];
+function indicesOrdre(mots,essai,echecs){
+  const l=[];let bien=0;
+  while(bien<mots.length&&essai[bien]===mots[bien])bien++;
+  const maj=m=>/^[A-ZÀÂÉÈÊÎÔÛÇ]/.test(m);
+  if(essai[0]!==mots[0]){
+    if(!maj(essai[0]))l.push({k:"h_maj"});
+    else l.push({k:"h_first"});
+  }
+  const fin=mots[mots.length-1].slice(-1);
+  if(essai[essai.length-1]!==mots[mots.length-1]&&/[.?!]/.test(fin))
+    l.push({k:"h_end",v:{a:"« "+fin+" »"}});
+  // Le sujet vient juste avant le verbe.
+  for(let i=0;i<mots.length-1;i++){
+    const s=mots[i].toLowerCase().replace(/[,.]/g,"");
+    if(PRONOMS.includes(s)&&essai.indexOf(mots[i])+1!==essai.indexOf(mots[i+1])){
+      l.push({k:"h_subj",v:{a:mots[i],b:mots[i+1].replace(/[,.]/g,"")}});break;
+    }
+  }
+  if(bien>0&&bien<mots.length)l.push({k:"h_ok",v:{a:bien}});
+  return l.slice(0,3);
+}
+function vueOrdre(p){
+  scene.append(el("p","jeu-titre","Puzzle · remets la phrase dans l'ordre"));
+  scene.append(IMG.scene(p.mots.join(" "),["🧩"],"papier","Illustration de la phrase"));
+  const rep=el("div","rang rep"),res=el("div","rang reserve");
+  rep.setAttribute("aria-label","Ta phrase");res.setAttribute("aria-label","Mots disponibles");
+  scene.append(rep,res);
+  const a=zoneActions(),zone=el("div");zone.setAttribute("aria-live","polite");
+  const verif=el("button","btn","Vérifier");verif.disabled=true;let premier=true,echecs=0;
+  let ordre=melange(p.mots);if(ordre.join(" ")===p.mots.join(" "))ordre.reverse();
+  ordre.forEach(m=>{
+    const j=el("button","jeton",esc(m));
+    j.onclick=()=>{j.classList.remove("bon","mal");(j.parentNode===res?rep:res).append(j);verif.disabled=res.children.length>0};
+    res.append(j);
+  });
+  verif.onclick=()=>{
+    const essai=[...rep.children].map(x=>x.textContent).join(" ");zone.innerHTML="";
+    if(essai===p.mots.join(" ")){
+      if(premier)etoile(1);
+      rep.querySelectorAll("button").forEach(x=>x.disabled=true);
+      zone.append(retourProf("Bravo, c'est la bonne phrase !",true));
+      verif.replaceWith(boutonSuite());
+    }else{
+      premier=false;echecs++;rep.classList.remove("secoue");void rep.offsetWidth;rep.classList.add("secoue");
+      const mots=[...rep.children].map(x=>x.textContent);
+      [...rep.children].forEach((x,i)=>{x.classList.remove("bon","mal");x.classList.add(x.textContent===p.mots[i]?"bon":"mal")});
+      const l=[{k:"h_legend"}].concat(indicesOrdre(p.mots,mots,echecs));
+      if(echecs>=2&&p.aide)l.push(p.aide);
+      zone.append(retourProf(l,false));
+    }
+  };
+  a.append(zone,verif);
+}
+function vueEcoute(p){
+  scene.append(el("p","jeu-titre","Écoute · repère l'indice"));
+  scene.append(IMG.scene(p.audio+" "+p.question,["🎧"],"nuit","Illustration de l'indice"));
+  scene.append(el("p","phrase",esc(p.question)));
+  const rang=el("div","ecoute");
+  const be=el("button","btn","Écouter la voix");
+  const texte=el("p","trad");texte.hidden=true;texte.textContent="« "+p.audio+" »";
+  be.onclick=()=>{if(!parler(p.audio)){texte.hidden=false}};
+  const bl=el("button","btn doux","Je n'entends rien");bl.onclick=()=>{texte.hidden=false};
+  rang.append(be,bl);scene.append(rang,texte);
+  const a=zoneActions(),opts=el("div","options"),zone=el("div");zone.setAttribute("aria-live","polite");let premier=true;
+  if(p.options.some(o=>o.length>8))opts.classList.add("longues");
+  p.options.forEach(o=>{
+    const b=el("button","choix",esc(o));
+    b.onclick=()=>{
+      zone.innerHTML="";
+      if(o===p.ok){
+        opts.querySelectorAll("button").forEach(x=>x.disabled=true);b.classList.add("bon");
+        if(premier)etoile(1);texte.hidden=false;
+        zone.append(retourProf(p.bravo,true));a.append(boutonSuite());
+      }else{premier=false;b.classList.add("faux");b.disabled=true;zone.append(retourProf("Pas tout à fait. Écoute encore une fois.",false))}
+    };
+    opts.append(b);
+  });
+  a.append(opts,zone);
+}
+// Explication d'une erreur au rythme (niveau A1) : question, lieu ou verbe conjugué.
+const QUESTIONS={"Où":"un lieu","Qui":"une personne","Quand":"un moment"};
+const LIEUX={"sur":"au-dessus","sous":"en dessous","dans":"à l'intérieur","derrière":"à l'arrière","à côté du":"tout près, à côté","dans le":"à l'intérieur","sur le":"au-dessus"};
+const FORMES=Object.assign({},window.FORMES_PLUS,{suis:"je",es:"tu",est:"il, elle",sommes:"nous",êtes:"vous",sont:"ils, elles",ai:"je (j')",as:"tu",a:"il, elle",avons:"nous",avez:"vous",ont:"ils, elles"});
+function personnes(v){
+  if(FORMES[v])return FORMES[v];
+  if(/ent$/.test(v))return "ils, elles";
+  if(/ons$/.test(v))return "nous";
+  if(/ez$/.test(v))return "vous";
+  if(/es$/.test(v))return "tu";
+  if(/s$/.test(v))return "je, tu";
+  if(/[td]$/.test(v))return "il, elle";
+  return "je, il, elle";
+}
+function personneDe(avant){
+  const a=avant.trim().toLowerCase();
+  if(/^(je|j')/.test(a))return "je";if(/^tu/.test(a))return "tu";if(/^nous/.test(a))return "nous";if(/^vous/.test(a))return "vous";
+  if(/^(ils|elles|les )/.test(a))return "ils, elles";return "il, elle";
+}
+// Pronom du sujet affiché : « Le cours » → il, « J' » → j'.
+function pronomDe(avant){
+  const a=avant.trim().toLowerCase();
+  if(/^j'?$/.test(a)||a==="je")return "je";
+  for(const p of ["tu","il","elle","nous","vous","ils","elles"])if(a===p)return p;
+  return /^les /.test(a)?"ils":"il";
+}
+const voyelle=v=>/^[aeiouyàâéèêëîïôûh]/i.test(v);
+const avecPronom=(p,v)=>p==="je"&&voyelle(v)?"j'"+v:p+" "+v;
+// Carte d'erreur : bonne réponse (pronom + verbe) face à l'erreur (pronom + verbe), puis la règle.
+function carteErreur(it,choisi){
+  const [avant,apres,ok,,pic]=it,c=el("div","erreur");
+  const lignes=[];let bonne,faute=null,pre=null;
+  if(QUESTIONS[ok]||LIEUX[ok]){
+    bonne=ok;faute=choisi;
+    const mot={"un lieu":"@m_lieu","une personne":"@m_pers","un moment":"@m_moment","au-dessus":"@m_dessus","en dessous":"@m_dessous","à l'intérieur":"@m_dedans","à l'arrière":"@m_derriere","tout près, à côté":"@m_pres"};
+    const [tab,cle]=QUESTIONS[ok]?[QUESTIONS,"r_q"]:[LIEUX,"r_lieu"];
+    lignes.push({k:cle,v:{a:ok,b:mot[tab[ok]]}});
+    if(choisi!=null&&tab[choisi])lignes.push({k:cle,v:{a:choisi,b:mot[tab[choisi]]}});
+    if(pic)c.append(picto(pic));
+  }else{
+    const pr=pronomDe(avant);
+    bonne=avecPronom(pr,ok);faute=choisi==null?null:avecPronom(pr,choisi);
+    lignes.push({k:"r_goes",v:{a:ok,b:personnes(ok)}});
+    if(choisi!=null)lignes.push({k:"r_goes",v:{a:choisi,b:personnes(choisi)}});
+    if(!FORMES[ok]){const per=personneDe(avant);
+      const cle={"je":"r_je","tu":"r_tu","il, elle":"r_il","nous":"r_nous","vous":"r_vous","ils, elles":"r_ils"}[per];if(cle)lignes.push({k:cle})}
+  }
+  if(choisi==null)lignes.unshift({k:"r_time"});
+  const duo=el("div","duo");
+  duo.append(el("p","oui",`<span aria-hidden="true">✔</span> <span class="vs">${esc(FR.r_ok)}</span><b>${esc(bonne)}</b>`));
+  if(faute!=null)duo.append(el("p","non",`<span aria-hidden="true">✘</span> <span class="vs">${esc(FR.r_ko)}</span><s>${esc(faute)}</s>`));
+  c.append(duo);
+  const fr=lignes.map(m=>ligne(m,false));
+  c.append(el("p","expl",fr.map(esc).join("<br>")));
+  pre=[`✔ ${ui("r_ok")} : ${bonne}`].concat(faute!=null?[`✘ ${ui("r_ko")} : ${faute}`]:[]);
+  const t=boutonTraduire(lignes,pre);if(t)c.append(...t);
+  return c;
+}
+function vueRythme(p){
+  const DUREE=8000;let n=0,bons=0,serie=0,minuteur=null,arret=false;const rates=[];
+  nettoyage=()=>{arret=true;clearTimeout(minuteur)};
+  scene.append(el("p","jeu-titre",esc(p.titre)));
+  const schema=el("div"),phrase=el("p","phrase"),chrono=el("div","chrono","<i></i>"),info=el("p","serie");
+  info.setAttribute("aria-live","polite");
+  scene.append(schema,phrase,chrono,info);
+  const a=zoneActions(),opts=el("div","options");a.append(opts);
+  if(p.items.some(it=>it[2].length>8))opts.classList.add("longues");
+  function tour(){
+    if(arret)return;
+    if(n>=p.items.length)return bilan();
+    const [avant,apres,ok,faux,pic]=p.items[n];
+    schema.innerHTML="";if(pic)schema.append(picto(pic));
+    phrase.innerHTML=`${esc(avant)}${!avant||avant.endsWith("'")?"":" "}<u>&nbsp;</u> ${esc(apres)}`;
+    info.innerHTML=`Phrase ${n+1} sur ${p.items.length} · série <b>${serie}</b>`;
+    opts.innerHTML="";
+    melange([ok,...faux]).forEach(v=>{
+      const b=el("button","choix",esc(v));b.onclick=()=>reponse(v===ok,b,ok);opts.append(b);
+    });
+    const barre=chrono.firstChild;barre.style.transition="none";barre.style.transform="scaleX(1)";void barre.offsetWidth;
+    barre.style.transition=`transform ${DUREE}ms linear`;barre.style.transform="scaleX(0)";
+    minuteur=setTimeout(()=>reponse(false,null,ok),DUREE);
+  }
+  function reponse(juste,b,ok){
+    if(arret)return;
+    clearTimeout(minuteur);
+    chrono.firstChild.style.transition="none";
+    opts.querySelectorAll("button").forEach(x=>{x.disabled=true;if(x.textContent===ok)x.classList.add("bon")});
+    if(b&&!juste)b.classList.add("faux");
+    phrase.querySelector("u").textContent=ok;
+    if(juste){bons++;serie++}else{serie=0;rates.push({it:p.items[n],choisi:b?b.textContent:null})}
+    info.innerHTML=juste?`Oui ! Série <b>${serie}</b>`:`La bonne réponse : <b>${esc(ok)}</b>`;
+    n++;minuteur=setTimeout(tour,juste?800:1700);
+  }
+  function bilan(){
+    const e=bons>=8?3:bons>=6?2:1;etoile(e);
+    phrase.textContent=`${bons} bonnes réponses sur ${p.items.length}`;
+    schema.remove();chrono.remove();info.remove();opts.remove();
+    scene.insertBefore(el("p","etoiles","★".repeat(e)+"<s>"+"★".repeat(3-e)+"</s>"),a);
+    if(rates.length){
+      const bloc=el("div","erreurs");bloc.append(el("h3",null,rates.length>1?"Les réponses à corriger":"La réponse à corriger"));
+      rates.forEach(({it,choisi})=>bloc.append(carteErreur(it,choisi)));
+      scene.insertBefore(bloc,a);
+    }
+    a.append(retourProf(e===3?"Excellent rythme ! Tu réponds vite et bien.":"Bien joué ! Tu peux rejouer l'épisode pour battre ton score.",true),boutonSuite());
+  }
+  tour();
+}
+function vueFin(){
+  const ep=EPISODES[etat.ep],s=partie(etat.ep);
+  s.fini=true;s.meilleur=Math.max(s.meilleur||0,etat.etoiles);s.i=0;s.etoiles=0;enregistrer();
+  scene.append(el("p","sur",`Épisode ${etat.ep} terminé`));
+  scene.append(el("h1",null,"Bien joué, "+esc(etat.nom)+" !"));
+  scene.append(el("p","etoiles",`★ ${etat.etoiles} / ${ETOILES_MAX}`));
+  const ul=el("ul","bilan");
+  ul.append(el("li",null,`<b>${etat.cartes.size} cartes</b> de vocabulaire sur ${Object.keys(MOTS).length}`));
+  ul.append(el("li",null,esc(ep.indice)),el("li",null,esc(ep.suite)));
+  scene.append(ul);
+  const a=zoneActions();
+  if(EPISODES[etat.ep+1]){const n=el("button","btn",`Jouer l'épisode ${etat.ep+1}`);n.onclick=()=>lancer(etat.ep+1,true);a.append(n)}
+  const m=el("button","btn doux","Retour au menu");m.onclick=()=>menu(false);a.append(m);
+}
+
+/* ---------- Cartes ---------- */
+function imageCarte(k,cls){
+  const m=IMG.pourMot(k,MOTS[k][0]);
+  if(m.type==="couleur")return `<i class="${cls} cc" style="background:${m.v}"></i>`;
+  if(m.type==="jour")return `<i class="${cls}">${["L","M","M","J","V","S","D"].map((l,i)=>`<u${i===m.v?' class="on"':""}>${l}</u>`).join("")}</i>`;
+  return `<i class="${cls}">${m.v}</i>`;
+}
+// Image en grand : on touche l'image pour réentendre le mot en français.
+function agrandir(k){
+  const v=$("#grand");v.innerHTML="";
+  const f=MOTS[k][0];
+  const im=el("button","grand-img",imageCarte(k,"gi"));im.setAttribute("aria-label","Écouter "+f);im.onclick=()=>parler(f);
+  const t=el("p","grand-mot",esc(f)),s=el("p","grand-sens",esc(traduction(k)));s.lang=etat.langue;if(RTL[etat.langue])s.dir="rtl";
+  const e=el("button","btn","Écouter"),x=el("button","btn doux","Fermer");
+  e.onclick=()=>parler(f);x.onclick=()=>{silence();v.hidden=true;$("#grille button.carte")&&0};
+  const boite=el("div","album grand-boite");boite.append(im,t,s,e,x);v.append(boite);
+  v.hidden=false;x.focus();parler(f);
+}
+$("#grand").onclick=e=>{if(e.target.id==="grand"){silence();e.target.hidden=true}};
+function ouvreCartes(){
+  const g=$("#grille");g.innerHTML="";
+  Object.keys(MOTS).forEach(k=>{
+    if(etat.cartes.has(k)){
+      const c=el("button","carte",`${imageCarte(k,"ci")}<b>${esc(MOTS[k][0])}</b><span ${attrLangue()}>${esc(traduction(k))}</span>`);
+      c.setAttribute("aria-label",`${MOTS[k][0]} : agrandir et écouter`);c.onclick=()=>agrandir(k);g.append(c);
+    }
+    else g.append(el("div","carte vide","?"));
+  });
+  $("#voile").hidden=false;$("#ferme-cartes").focus();
+}
+$("#ouvre-cartes").onclick=ouvreCartes;
+$("#menu-cartes").onclick=ouvreCartes;
+$("#ferme-cartes").onclick=()=>{$("#voile").hidden=true};
+function majVoix(){const b=$("#voix");b.setAttribute("aria-pressed",etat.voix);b.textContent=etat.voix?"Voix":"Voix coupée"}
+$("#voix").onclick=()=>{etat.voix=!etat.voix;majVoix();enregistrer();if(!etat.voix)silence()};
+
+/* ---------- Menu principal ---------- */
+function listeEpisodes(){
+  const z=$("#episodes");z.innerHTML="";
+  const tete=el("div");tete.append(el("p","sur","L'histoire"));
+  const sous=el("p","pitch",esc(ui("menu_histoire")));sous.lang=etat.langue;if(RTL[etat.langue])sous.dir="rtl";tete.append(sous);z.append(tete);
+  if(window.listeBases)listeBases();
+  Object.keys(EPISODES).forEach(k=>{
+    const n=+k,ep=EPISODES[n],s=sauve.eps[n]||{},enCours=s.i>0;
+    const c=el("div","episode");
+    c.append(el("p","sur",`Épisode ${n}`),el("h2",null,esc(ep.titre)),el("p",null,esc(ep.resume)));
+    const bouts=[];
+    if(enCours)bouts.push(`En cours · <b>${Math.round(s.i/(ep.etapes.length-1)*100)} %</b>`);
+    if(s.fini)bouts.push(`Terminé · <b>★ ${s.meilleur} / ${ETOILES_MAX}</b>`);
+    if(bouts.length)c.append(el("p","statut",bouts.join(" · ")));
+    const b=el("button","btn",enCours?"Reprendre":s.fini?"Rejouer":"Commencer");
+    b.onclick=()=>lancer(n,!enCours);c.append(b);
+    if(enCours){const r=el("button","btn doux","Recommencer au début");r.onclick=()=>lancer(n,true);c.append(r)}
+    z.append(c);
+  });
+  if(window.carteCoffre)carteCoffre(z);
+  if(window.listeJeux)listeJeux();
+  if(window.listeSuivi)listeSuivi();
+}
+function menu(sauvegarde){
+  quitteEtape();enregistrer();listeEpisodes();
+  $("#note").hidden=!sauvegarde;
+  $("#accueil").hidden=false;$("#haut").hidden=true;scene.hidden=true;scene.innerHTML="";window.scrollTo(0,0);
+}
+function lancer(n,debut){
+  quitteEtape();
+  etat.nom=$("#prenom").value.trim()||"Alex";etat.ep=n;
+  const s=partie(n);if(debut){s.i=0;s.etoiles=0}
+  etat.i=s.i;etat.etoiles=s.etoiles;etat.img=null;
+  // En reprise, on retrouve le lieu de l'étape sauvegardée.
+  for(let j=0;j<etat.i;j++){const p=etapes()[j];if(p.t==="lieu")poseLieu(p)}
+  $("#accueil").hidden=true;$("#haut").hidden=false;scene.hidden=false;majVoix();
+  afficher();
+}
+$("#vers-menu").onclick=()=>menu(true);
+$("#prenom").value=etat.nom;
+$("#prenom").addEventListener("input",e=>{etat.nom=e.target.value.trim();enregistrer()});
+// Choix de la langue : une liste déroulante avec le drapeau du pays.
+const DRAPEAUX={en:"🇬🇧",es:"🇪🇸",pt:"🇵🇹",ar:"🇸🇦",tr:"🇹🇷",uk:"🇺🇦",ro:"🇷🇴",fa:"🇦🇫",zh:"🇨🇳",ur:"🇵🇰",ps:"🇦🇫",pa:"🇮🇳",az:"🇦🇿",hi:"🇮🇳",bn:"🇧🇩",ru:"🇷🇺"};
+(function(){
+  const zone=$("#langues"),bt=el("button","langue-bouton"),liste=el("ul","langue-liste");
+  bt.type="button";bt.setAttribute("aria-haspopup","listbox");bt.setAttribute("aria-expanded","false");bt.setAttribute("aria-labelledby","etq-langue");
+  liste.setAttribute("role","listbox");liste.setAttribute("aria-labelledby","etq-langue");liste.hidden=true;
+  function maj(){
+    const nom=LANGUES.find(x=>x[0]===etat.langue)[1];
+    bt.innerHTML=`<span class="fl" aria-hidden="true">${DRAPEAUX[etat.langue]}</span><span class="nom" lang="${etat.langue}">${esc(nom)}</span><span class="fleche" aria-hidden="true">▾</span>`;
+    liste.querySelectorAll(".langue").forEach(x=>x.setAttribute("aria-selected",x.dataset.code===etat.langue));
+  }
+  function ferme(rendre){liste.hidden=true;bt.setAttribute("aria-expanded","false");if(rendre)bt.focus()}
+  function ouvre(){liste.hidden=false;bt.setAttribute("aria-expanded","true");const c=liste.querySelector('[aria-selected="true"]');if(c){c.scrollIntoView({block:"nearest"});c.focus()}}
+  LANGUES.forEach(([code,nom])=>{
+    const li=el("li");li.setAttribute("role","presentation");
+    const b=el("button","langue",`<span class="fl" aria-hidden="true">${DRAPEAUX[code]}</span><span lang="${code}">${esc(nom)}</span>`);
+    b.type="button";b.dataset.code=code;b.setAttribute("role","option");
+    b.onclick=()=>{etat.langue=code;enregistrer();maj();ferme(true);listeEpisodes()};
+    li.append(b);liste.append(li);
+  });
+  bt.onclick=()=>liste.hidden?ouvre():ferme();
+  zone.addEventListener("keydown",e=>{
+    if(e.key==="Escape"&&!liste.hidden){ferme(true);return}
+    if((e.key==="ArrowDown"||e.key==="ArrowUp")&&!liste.hidden){
+      const bs=[...liste.querySelectorAll(".langue")],i=bs.indexOf(document.activeElement);
+      e.preventDefault();bs[Math.max(0,Math.min(bs.length-1,i+(e.key==="ArrowDown"?1:-1)))].focus();
+    }
+  });
+  document.addEventListener("click",e=>{if(!liste.hidden&&!zone.contains(e.target))ferme()});
+  zone.append(bt,liste);maj();
+})();
+listeEpisodes();
+</script>
+<script src="images.js"></script>
+<script src="culture.js"></script>
+<script src="escape.js"></script>
+<script src="jeux2.js"></script>
+<script src="jeux.js"></script>
+<script src="suivi.js"></script>
+<script src="bases.js"></script>
+
+</body>
+</html>
