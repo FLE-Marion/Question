@@ -10,7 +10,7 @@ const B = require('./banque.js');
 const PORT = +process.env.PORT || 8080;
 const PUB = fs.existsSync(path.join(__dirname, 'public', 'eleve.html')) ? path.join(__dirname, 'public') : __dirname; // tolère les fichiers mis à plat
 const CAPA = {}; const capa = id => (CAPA[id] = CAPA[id] || B.capacite(id));
-const PRIVES = new Set(['serveur.js', 'banque.js', 'themes2.js', 'themes3.js', 'package.json', 'render.yaml', 'download']);
+const PRIVES = new Set(['serveur.js', 'banque.js', 'themes2.js', 'themes3.js', 'ressources.js', 'package.json', 'render.yaml', 'download']);
 const parties = new Map();
 
 const COULEURS_EQ = [
@@ -230,7 +230,7 @@ function vueCommune(g) {
     q: (g.etat === 'question' || g.etat === 'reveal') && q ? B.publique(q) : null
   };
   if (g.etat === 'reveal' && q) {
-    v.rev = { bonne: etiquetteBonne(q), bonneIdx: q.bonne, expl: q.expl || '', type: q.type };
+    v.rev = { bonne: etiquetteBonne(q), bonneIdx: q.bonne, expl: q.expl || '', type: q.type, revoir: q.revoir || [] };
   }
   return v;
 }
@@ -291,10 +291,10 @@ const ENTETES = {
   'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer', 'Cache-Control': 'no-store'
 };
 function json(res, code, obj) { res.writeHead(code, Object.assign({ 'Content-Type': 'application/json; charset=utf-8' }, ENTETES)); res.end(JSON.stringify(obj)); }
-function corps(req) {
+function corps(req, max) {
   return new Promise(resolve => {
     let s = '';
-    req.on('data', d => { s += d; if (s.length > 8192) { req.destroy(); resolve(null); } });
+    req.on('data', d => { s += d; if (s.length > (max || 8192)) { req.destroy(); resolve(null); } });
     req.on('end', () => { try { resolve(s ? JSON.parse(s) : {}); } catch (e) { resolve(null); } });
     req.on('error', () => resolve(null));
   });
@@ -314,6 +314,78 @@ function fichier(res, nom) {
     res.end(data);
   });
 }
+
+/* ---------- travail en solo : questions + boîte de réception des résultats ---------- */
+const BOITE = new Map();                       // code de classe (nettoyé) -> { nom, recs: [] }
+const FICHIER_SOLO = path.join(__dirname, 'data', 'solo.json');
+const cleG = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '').slice(0, 30);
+const txt = (s, n) => String(s == null ? '' : s).replace(/[<>&"`\\]/g, '').replace(/\s+/g, ' ').trim().slice(0, n);
+const entier = (x, a, b) => Math.max(a, Math.min(b, Math.round(+x) || 0));
+try {
+  const d = JSON.parse(fs.readFileSync(FICHIER_SOLO, 'utf8'));
+  Object.keys(d).forEach(k => BOITE.set(k, d[k]));
+} catch (e) { /* pas encore de fichier */ }
+let ecritEnCours = null;
+function sauveBoite() {
+  if (ecritEnCours) return;
+  ecritEnCours = setTimeout(() => {
+    ecritEnCours = null;
+    try { fs.mkdirSync(path.dirname(FICHIER_SOLO), { recursive: true }); fs.writeFileSync(FICHIER_SOLO, JSON.stringify(Object.fromEntries(BOITE))); } catch (e) { /* disque en lecture seule : on garde la mémoire */ }
+  }, 1500);
+  if (ecritEnCours.unref) ecritEnCours.unref();
+}
+function recPropre(r) {
+  if (!r || typeof r !== 'object') return null;
+  const themes = (Array.isArray(r.themes) ? r.themes : []).filter(t => B.THEMES[t]).slice(0, 30);
+  const parTheme = {};
+  Object.keys(r.parTheme || {}).forEach(t => { if (B.THEMES[t]) { const n = entier(r.parTheme[t].n, 0, 500); parTheme[t] = { ok: entier(r.parTheme[t].ok, 0, n), n }; } });
+  if (!themes.length || !Object.keys(parTheme).length) return null;
+  const nom = txt(r.nom, 18); if (!nom) return null;
+  const erreurs = (Array.isArray(r.erreurs) ? r.erreurs : []).slice(0, 40).map(e => ({
+    theme: B.THEMES[e && e.theme] ? e.theme : '', mot: txt(e && e.mot, 60), bonne: txt(e && e.bonne, 80), rep: txt(e && e.rep, 80),
+    rev: (Array.isArray(e && e.rev) ? e.rev : []).slice(0, 3).map(x => ({ d: txt(x && x.d, 40), t: txt(x && x.t, 90), p: txt(x && x.p, 20) }))
+  })).filter(e => e.theme);
+  const total = entier(r.total, 1, 500);
+  return {
+    id: txt(r.id, 40) || ('s' + Date.now().toString(36)), t: entier(r.t, 1, 4102444800000) || Date.now(), nom, themes, parTheme,
+    total, bonnes: entier(r.bonnes, 0, total), score: entier(r.score, 0, 100000), erreurs
+  };
+}
+function boite(groupe, creer) {
+  const k = cleG(groupe); if (k.length < 2) return null;
+  let b = BOITE.get(k);
+  if (!b && creer) {
+    if (BOITE.size >= 400) BOITE.delete(BOITE.keys().next().value);
+    b = { nom: txt(groupe, 30), recs: [] }; BOITE.set(k, b);
+  }
+  return b || null;
+}
+function actionSolo(p, b) {
+  if (p === '/api/solo/questions') {
+    const themes = (Array.isArray(b.themes) ? b.themes : []).filter(t => B.THEMES[t]);
+    const liste = themes.length ? themes : B.ORDRE;
+    const n = entier(b.n, 5, 30);
+    return { ok: true, questions: B.construire(liste, n, 'melange').map(B.pourSolo) };
+  }
+  if (p === '/api/solo/envoi') {
+    const bt = boite(b.groupe, true); if (!bt) return { ok: false, erreur: 'Code de classe trop court.' };
+    const recs = (Array.isArray(b.recs) ? b.recs : [b.rec]).slice(0, 30);
+    let n = 0;
+    recs.forEach(x => {
+      const r = recPropre(x); if (!r) return;
+      if (bt.recs.some(y => y.id === r.id)) return;
+      bt.recs.push(r); n++;
+    });
+    if (bt.recs.length > 6000) bt.recs.splice(0, bt.recs.length - 6000);
+    if (n) sauveBoite();
+    return { ok: true, recus: n };
+  }
+  if (p === '/api/solo/recoit') {
+    const bt = boite(b.groupe, false);
+    return { ok: true, nom: bt ? bt.nom : '', recs: bt ? bt.recs : [] };
+  }
+  return null;
+}
 const serveur = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   const p = url.pathname;
@@ -322,17 +394,19 @@ const serveur = http.createServer(async (req, res) => {
       if (p === '/' || p === '/eleve') return fichier(res, 'eleve.html');
       if (p === '/prof') return fichier(res, 'prof.html');
       if (p === '/suivi') return fichier(res, 'suivi.html');
+      if (p === '/solo') return fichier(res, 'solo.html');
       if (p === '/api/info') return json(res, 200, {
         port: PORT, adresses: adresses(),
-        themes: B.ORDRE.map(id => ({ id, titre: B.THEMES[id].titre, emoji: B.THEMES[id].emoji, n: capa(id) }))
+        themes: B.ORDRE.map(id => ({ id, titre: B.THEMES[id].titre, emoji: B.THEMES[id].emoji, n: capa(id), revoir: B.refsTheme(id), horsDocs: !!B.RES.THEMES[id].horsDocs }))
       });
       if (p === '/api/flux') return flux(req, res, url);
       if (p.startsWith('/') && p.length > 1 && !p.slice(1).includes('/')) return fichier(res, p.slice(1));
       return json(res, 404, { erreur: 'introuvable' });
     }
     if (req.method === 'POST') {
-      const b = await corps(req);
+      const b = await corps(req, p.startsWith('/api/solo/') ? 60000 : 8192);
       if (b === null) return json(res, 400, { erreur: 'requête invalide' });
+      if (p.startsWith('/api/solo/')) { const r = actionSolo(p, b); return r ? json(res, 200, r) : json(res, 404, { erreur: 'introuvable' }); }
       if (p === '/api/creer') {
         const g = creer(b);
         if (!g) return json(res, 400, { erreur: 'Choisis au moins un thème.' });

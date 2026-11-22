@@ -198,7 +198,8 @@ function vueReveal(e) {
   app.innerHTML = haut(e) +
     '<div class="verdict ' + cls + '"><div class="gros">' + ico + '</div><h2>' + titre + '</h2>' + (r.pts ? '<div class="pts">+ ' + r.pts + ' pts</div>' : '') + '</div>' +
     '<p class="sur" style="text-align:center">Bonne réponse</p><div class="bonne">' + bonne + '</div>' + sa +
-    (r.expl ? '<p class="expl">' + esc(r.expl) + '</p>' : '') + rang +
+    (r.expl ? '<p class="expl">' + esc(r.expl) + '</p>' : '') +
+    (!r.ok && r.revoir && r.revoir.length ? '<p class="expl" style="color:var(--ambre)">📖 À revoir : ' + r.revoir.slice(0, 2).map(x => esc(x.d) + (x.p ? ' ' + esc(x.p) : '')).join(' · ') + '</p>' : '') + rang +
     '<p class="doux" style="text-align:center">Regarde l\'écran du professeur…</p>';
   window.scrollTo(0, 0);
 }

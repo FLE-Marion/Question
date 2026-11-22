@@ -31,14 +31,30 @@
   .petit-btn{background:var(--prune2);border:2px solid var(--trait);border-radius:12px;padding:6px 12px;font-weight:700;min-height:40px}
   .danger{border-color:var(--non);color:var(--non)}
   input.court,select.court{background:var(--prune);border:2px solid var(--trait);border-radius:12px;padding:8px 10px;font-size:1rem;min-width:0}
+  .revoir{background:var(--prune2);border:2px dashed var(--ambre);border-radius:14px;padding:8px 12px;margin-top:6px;font-size:.95rem}
+  .revoir b{color:var(--ambre)}
+  .faible-li{padding:10px 0;border-top:1px solid var(--trait)}
+  .faible-li:first-child{border-top:0}
+  .pastille-nom{display:inline-block;background:var(--prune2);border:1px solid var(--trait);border-radius:999px;padding:1px 10px;margin:2px 4px 2px 0;font-size:.9rem}
+  #fiche{display:none}
+  @media print{
+    body{background:#fff!important;color:#000!important;padding:0!important}
+    body.imprime main#app{display:none!important}
+    body.imprime #fiche{display:block!important;color:#000;background:#fff;font:14pt/1.4 "Segoe UI",system-ui,sans-serif}
+    #fiche h1{font-size:20pt;margin:0 0 4pt}#fiche h2{font-size:14pt;margin:14pt 0 4pt;border-bottom:1px solid #999}
+    #fiche li{margin:3pt 0}#fiche .barreP{display:inline-block;height:9pt;background:#888;vertical-align:middle;margin-right:6pt}
+  }
 </style>
 </head>
 <body class="prof">
 <main id="app" class="large"></main>
+<div id="fiche"></div>
 <script src="commun.js"></script>
 <script>
 const CARNET = 'pc-carnet';
 let C = { version: 1, parties: [] }, vue = 'classe', groupe = '', eleveCle = '', mesure = 'pct', msg = '';
+const K_SOLO = 'pc-solo-codes';
+let INFO = {}, SOLO = [], chargeSolo = false;
 const app = $('#app');
 
 /* ---------- données ---------- */
@@ -62,6 +78,40 @@ function eleves() {
 }
 function titresThemes() {
   const t = {}; C.parties.forEach(p => Object.keys(p.titres || {}).forEach(id => { t[id] = p.titres[id]; })); return t;
+}
+/* ---------- références de révision (pages des documents) et travail en solo ---------- */
+const lisLS = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v == null ? d : v; } catch (e) { return d; } };
+function refsHtml(id, titre) {
+  const t = INFO[id];
+  if (!t) return '';
+  if (t.horsDocs) return '<div class="revoir doux">Ce thème n\'a pas de page dans les documents de la classe.</div>';
+  if (!t.revoir || !t.revoir.length) return '';
+  return '<div class="revoir"><b>📖 ' + esc(titre || 'À revoir') + '</b> : ' + t.revoir.map(r => esc(r.d) + ' — ' + esc(r.t) + (r.p ? ' (<b>' + esc(r.p) + '</b>)' : '')).join(' · ') + '</div>';
+}
+function motsRates(passages, id) {
+  const m = {};
+  passages.forEach(({ e }) => (e.erreurs || []).forEach(x => { if (x.theme !== id) return; const x2 = m[x.mot] = m[x.mot] || { n: 0, x }; x2.n++; }));
+  return Object.values(m).sort((a, b) => b.n - a.n);
+}
+function themesFaibles(stats, seuil) {
+  return Object.keys(stats).filter(id => stats[id].n >= 3 && 100 * stats[id].ok / stats[id].n < (seuil || 70)).sort((a, b) => stats[a].ok / stats[a].n - stats[b].ok / stats[b].n);
+}
+async function recupereSolo() {
+  SOLO = lisLS(K_SOLO, []); let n = 0, echec = false;
+  const ids = new Set(); C.parties.forEach(p => ids.add(p.id));
+  for (const code of SOLO) {
+    const r = await api('/api/solo/recoit', { groupe: code });
+    if (!r.ok) { echec = true; continue; }
+    (r.recs || []).forEach(x => {
+      if (!x || !x.id || ids.has(x.id) || !x.nom) return;
+      const titres = {}; (x.themes || []).forEach(id => { titres[id] = { titre: (INFO[id] || { titre: id }).titre, emoji: (INFO[id] || { emoji: '' }).emoji }; });
+      C.parties.push({ id: x.id, t: x.t, signature: 'solo-' + x.id, groupe: code, mode: 'solo', themes: x.themes, titres,
+        eleves: [{ nom: x.nom, score: x.score, bonnes: x.bonnes, rep: x.total, parTheme: x.parTheme, erreurs: x.erreurs || [] }] });
+      ids.add(x.id); n++;
+    });
+  }
+  if (n) garde();
+  return { n, echec };
 }
 function statThemes(passages) {
   const r = {};
@@ -129,6 +179,7 @@ function rends() {
     return;
   }
   if (msg) { app.append(el('p', 'carte', esc(msg))); msg = ''; }
+  if (C.parties.some(p => p.mode === 'solo')) { /* rien à ajouter : l'indicateur Solo est dans la liste des parties */ }
   const nav = el('div', 'onglets');
   [['classe', '📊 Classe'], ['eleve', '🧑 Un élève'], ['parties', '🗓️ Parties'], ['donnees', '💾 Données']].forEach(([id, l]) => {
     const b = el('button', null, l); b.setAttribute('aria-pressed', vue === id); b.onclick = () => { vue = id; rends(); }; nav.append(b);
@@ -170,9 +221,53 @@ function vueClasse() {
   const d = el('div', 'defile'); d.append(t); c2.append(d);
   c2.append(el('p', 'doux petit', 'Chaque case = % de bonnes réponses sur toutes les parties du thème (survole une case pour voir « justes / posées »). Clique sur un prénom pour voir sa progression.'));
   z.append(c2);
+  z.append(carteClasse(es, statsClasse, titres));
   return z;
 }
 
+function carteClasse(es, statsClasse, titres) {
+  const faibles = themesFaibles(statsClasse, 70), c = el('div', 'carte');
+  c.innerHTML = '<h2 style="margin-bottom:6px">🎯 Points à améliorer pour la classe</h2>';
+  if (!faibles.length) { c.append(el('p', 'doux', 'Aucun thème sous 70 % de réussite (avec au moins 3 questions). 🎉')); return c; }
+  c.append(el('p', 'doux', 'Thèmes sous 70 % de réussite pour l\'ensemble du groupe, avec les pages à faire revoir et les élèves à accompagner (moins de 60 %).'));
+  faibles.forEach(id => {
+    const t = titres[id] || { titre: id, emoji: '' }, v = Math.round(100 * statsClasse[id].ok / statsClasse[id].n);
+    const eleves = es.map(e => ({ e, s: statThemes(e.passages)[id] })).filter(x => x.s && x.s.n >= 2 && 100 * x.s.ok / x.s.n < 60).sort((a, b) => a.s.ok / a.s.n - b.s.ok / b.s.n);
+    const d = el('div', 'faible-li');
+    d.innerHTML = '<div class="barre"><span class="nom" style="width:13em">' + esc(t.emoji || '') + ' ' + esc(t.titre) + '</span><span class="fond"><i style="width:' + v + '%;background:' + couleur(v) + '"></i></span><span class="val" style="width:9em">' + v + ' %</span></div>' +
+      (eleves.length ? '<div style="margin-top:4px">À accompagner : ' + eleves.map(x => '<span class="pastille-nom">' + esc(x.e.nom) + ' ' + Math.round(100 * x.s.ok / x.s.n) + ' %</span>').join('') + '</div>' : '') + refsHtml(id, 'À faire revoir');
+    c.append(d);
+  });
+  return c;
+}
+function carteAmeliorer(e, titres) {
+  const st = statThemes(e.passages), faibles = themesFaibles(st, 70);
+  const c = el('div', 'carte');
+  const haut = '<div class="haut-tabl"><h2>🎯 Points à améliorer</h2><button class="petit-btn" id="imp">🖨️ Fiche de révision</button></div>';
+  if (!faibles.length) { c.innerHTML = haut + '<p class="doux" style="margin-top:8px">Aucun thème sous 70 % (avec au moins 3 questions). Bravo !</p>'; c.querySelector('#imp').onclick = () => fiche(e, titres, st, faibles); return c; }
+  c.innerHTML = haut + '<p class="doux" style="margin:6px 0 4px">Thèmes sous 70 % de réussite, du plus faible au moins faible, avec les pages à faire revoir.</p>' +
+    faibles.map(id => {
+      const t = titres[id] || { titre: id, emoji: '' }, v = Math.round(100 * st[id].ok / st[id].n), mr = motsRates(e.passages, id).slice(0, 6);
+      return '<div class="faible-li"><div class="barre"><span class="nom" style="width:13em">' + esc(t.emoji || '') + ' ' + esc(t.titre) + '</span><span class="fond"><i style="width:' + v + '%;background:' + couleur(v) + '"></i></span><span class="val" style="width:9em">' + v + ' % <small class="doux">(' + st[id].ok + '/' + st[id].n + ')</small></span></div>' +
+        (mr.length ? '<div style="margin-top:4px">Mots ratés : ' + mr.map(m => '<span class="pastille-nom">' + esc(m.x.mot) + (m.n > 1 ? ' ×' + m.n : '') + '</span>').join('') + '</div>' : '') + refsHtml(id, 'À revoir') + '</div>';
+    }).join('');
+  c.querySelector('#imp').onclick = () => fiche(e, titres, st, faibles);
+  return c;
+}
+function fiche(e, titres, st, faibles) {
+  const f = $('#fiche');
+  const tous = Object.keys(st).sort((a, b) => st[a].ok / st[a].n - st[b].ok / st[b].n);
+  f.innerHTML = '<h1>Fiche de révision — ' + esc(e.nom) + '</h1><p>' + esc(new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })) + ' · Port-Clair</p>' +
+    '<h2>Mes résultats par thème</h2><ul style="list-style:none;padding:0">' + tous.map(id => { const t = titres[id] || { titre: id }, v = Math.round(100 * st[id].ok / st[id].n); return '<li><span class="barreP" style="width:' + (v * 1.2) + 'pt"></span>' + v + ' % — ' + esc(t.titre) + '</li>'; }).join('') + '</ul>' +
+    '<h2>À revoir</h2>' + (faibles.length ? faibles.map(id => {
+      const t = titres[id] || { titre: id }, info = INFO[id] || {}, mr = motsRates(e.passages, id).slice(0, 8);
+      return '<p><b>' + esc(t.titre) + '</b> (' + Math.round(100 * st[id].ok / st[id].n) + ' %)</p><ul>' + (info.revoir || []).map(r => '<li>' + esc(r.d) + ' — ' + esc(r.t) + (r.p ? ', ' + esc(r.p) : '') + '</li>').join('') + (info.horsDocs ? '<li>Demander à la professeure.</li>' : '') + '</ul>' + (mr.length ? '<p>Mots à retenir : ' + mr.map(m => esc(m.x.mot + ' → ' + m.x.bonne)).join(' ; ') + '</p>' : '');
+    }).join('') : '<p>Rien de particulier : continue comme ça !</p>');
+  document.body.classList.add('imprime');
+  const fin = () => { document.body.classList.remove('imprime'); window.removeEventListener('afterprint', fin); };
+  window.addEventListener('afterprint', fin);
+  setTimeout(() => window.print(), 50);
+}
 function vueEleve() {
   const z = el('div', 'centre'); z.style.maxWidth = 'none'; z.style.width = '100%'; z.style.margin = '0';
   const es = eleves(), titres = titresThemes();
@@ -199,6 +294,7 @@ function vueEleve() {
   z.append(c1);
   const c2 = el('div', 'carte'); c2.innerHTML = '<h2 style="margin-bottom:10px">Réussite par thème</h2>' + barresThemes(statThemes(e.passages), titres, Object.keys(titres));
   z.append(c2);
+  z.append(carteAmeliorer(e, titres));
   const c3 = el('div', 'carte'); c3.innerHTML = '<h2 style="margin-bottom:10px">Parties</h2>';
   const t = el('table', 'suivi');
   t.innerHTML = '<thead><tr><th>Date</th><th>Groupe</th><th>Score</th><th>Bonnes</th><th>Réussite</th><th>Thèmes</th></tr></thead><tbody>' + e.passages.slice().reverse().map(x => '<tr><td>' + esc(dateLongue(x.p.t)) + '</td><td>' + esc(x.p.groupe || '—') + '</td><td>' + x.e.score + '</td><td>' + x.e.bonnes + ' / ' + posees(x.e) + '</td><td><span class="cell" style="background:' + couleur(pct(x.e)) + '">' + pct(x.e) + ' %</span></td><td style="white-space:normal;text-align:left">' + esc(x.p.themes.map(id => (x.p.titres[id] || { titre: id }).titre).join(', ')) + '</td></tr>').join('') + '</tbody>';
@@ -214,7 +310,7 @@ function vueParties() {
   const ul = el('ul', 'liste');
   ps.forEach(p => {
     const li = el('li'); li.style.flexWrap = 'wrap'; li.style.padding = '10px 14px';
-    li.innerHTML = '<span style="min-width:12em"><b>' + esc(dateLongue(p.t)) + '</b><br><small class="doux">' + p.eleves.length + ' élève' + (p.eleves.length > 1 ? 's' : '') + ' · ' + esc(p.themes.map(id => (p.titres[id] || { titre: id }).titre).join(', ')) + (p.mode === 'equipes' ? ' · en équipes' : '') + '</small></span>';
+    li.innerHTML = '<span style="min-width:12em"><b>' + esc(dateLongue(p.t)) + '</b><br><small class="doux">' + p.eleves.length + ' élève' + (p.eleves.length > 1 ? 's' : '') + ' · ' + esc(p.themes.map(id => (p.titres[id] || { titre: id }).titre).join(', ')) + (p.mode === 'equipes' ? ' · en équipes' : '') + (p.mode === 'solo' ? ' · 🧑‍🎓 solo' : '') + '</small></span>';
     const g = document.createElement('input'); g.className = 'court'; g.maxLength = 30; g.placeholder = 'Classe / groupe'; g.value = p.groupe || ''; g.setAttribute('aria-label', 'Classe ou groupe de cette partie');
     g.onchange = () => { p.groupe = g.value.trim(); if (garde()) { msg = ''; } };
     const d = el('button', 'petit-btn danger', 'Supprimer'); d.style.marginLeft = 'auto';
@@ -240,6 +336,31 @@ function csvCarnet() {
   C.parties.slice().sort((a, b) => a.t - b.t).forEach(p => p.eleves.forEach(e => rows.push(lg([new Date(p.t).toLocaleString('fr-FR'), p.groupe || '', e.nom, e.score, e.bonnes, posees(e), pct(e)].concat(ids.map(id => { const s = (e.parTheme || {})[id]; return s ? s.ok + ' / ' + s.n : ''; }))))));
   return '﻿' + rows.join('\r\n');
 }
+function carteSolo() {
+  SOLO = lisLS(K_SOLO, []);
+  const c = el('div', 'carte');
+  const lien = location.origin + '/solo';
+  c.innerHTML = '<h2 style="margin-bottom:8px">🧑‍🎓 Travail en solo des élèves</h2>' +
+    '<p class="doux">Chaque élève ouvre <b>' + esc(lien) + '</b> sur son appareil, écrit son prénom et le <b>code de classe</b> que tu choisis ci-dessous, puis s\'entraîne seul. À la fin de chaque entraînement, son résultat est envoyé ici : ils s\'ajoutent au carnet (le mot « solo » apparaît dans « Parties »).</p>' +
+    '<p class="doux" style="margin-top:8px">Choisis un code simple à écrire mais difficile à deviner (ex. <i>6b-mer-2026</i>) : toute personne qui le connaît peut voir les résultats de la classe.</p>';
+  const ul = el('ul', 'liste'); ul.style.marginTop = '10px';
+  SOLO.forEach(code => {
+    const li = el('li'); li.innerHTML = '<span><b>' + esc(code) + '</b></span>';
+    const d = el('button', 'petit-btn danger', 'Retirer'); d.style.marginLeft = 'auto';
+    d.onclick = () => { SOLO = SOLO.filter(x => x !== code); try { localStorage.setItem(K_SOLO, JSON.stringify(SOLO)); } catch (e) { /* */ } rends(); };
+    li.append(d); ul.append(li);
+  });
+  c.append(ul);
+  const l = el('div', 'ligne-ctrl'); l.style.justifyContent = 'flex-start'; l.style.marginTop = '12px';
+  const i = document.createElement('input'); i.className = 'court'; i.maxLength = 30; i.placeholder = 'code de classe (ex. 6b-mer-2026)'; i.setAttribute('aria-label', 'Code de classe');
+  const ok = el('button', 'petit-btn', 'Ajouter ce code');
+  ok.onclick = () => { const v = i.value.trim(); if (v.replace(/[^a-zA-Z0-9]/g, '').length < 3) { msg = '⚠️ Le code doit avoir au moins 3 lettres ou chiffres.'; rends(); return; } if (!SOLO.includes(v)) SOLO.push(v); try { localStorage.setItem(K_SOLO, JSON.stringify(SOLO)); } catch (e) { /* */ } recupereSolo().then(r => { msg = '✔ Code ajouté. ' + r.n + ' résultat(s) solo importé(s).'; rends(); }); };
+  const rec = el('button', 'petit-btn', '↻ Récupérer les résultats maintenant');
+  rec.onclick = () => { rec.disabled = true; rec.textContent = 'Un instant…'; recupereSolo().then(r => { msg = r.echec ? '⚠️ Le serveur n\'a pas répondu (il se réveille peut-être : réessaie dans une minute).' : '✔ ' + r.n + ' nouveau(x) résultat(s) solo.'; rends(); }); };
+  l.append(i, ok, rec); c.append(l);
+  c.append(el('p', 'doux petit', 'Les résultats sont récupérés automatiquement à chaque ouverture du carnet. Si le serveur s\'est rendormi ou a redémarré avant que tu ouvres le carnet, l\'appareil de l\'élève renverra ses derniers résultats à sa prochaine connexion.'));
+  return c;
+}
 function donnees(vide) {
   const z = el('div', 'centre'); z.style.maxWidth = 'none'; z.style.width = '100%'; z.style.margin = '0';
   const c = el('div', 'carte');
@@ -263,6 +384,7 @@ function donnees(vide) {
   };
   l.append(b3, f);
   c.append(l); z.append(c);
+  z.append(carteSolo());
   if (vide) return z;
   const r = el('div', 'carte');
   r.innerHTML = '<h2 style="margin-bottom:8px">Corriger ou fusionner un prénom</h2><p class="doux">Si un élève s\'est écrit de deux façons (« Amir » et « Amir2 »), ou pour corriger une faute : toutes ses parties passent sous le nouveau prénom.</p>';
@@ -284,7 +406,11 @@ function donnees(vide) {
   return z;
 }
 
-rends();
+(async function () {
+  try { const r = await fetch('/api/info'); (await r.json()).themes.forEach(t => { INFO[t.id] = t; }); } catch (e) { /* hors ligne : pas de pages de révision */ }
+  charge(); rends();
+  if (lisLS(K_SOLO, []).length && !chargeSolo) { chargeSolo = true; const r = await recupereSolo(); if (r.n) { msg = '✔ ' + r.n + ' résultat' + (r.n > 1 ? 's' : '') + ' de travail en solo ajouté' + (r.n > 1 ? 's' : '') + ' au carnet.'; rends(); } }
+})();
 </script>
 </body>
 </html>

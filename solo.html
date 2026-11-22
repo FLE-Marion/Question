@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Port-Clair · Je m'entraîne</title>
+<link rel="stylesheet" href="classe.css">
+<style>
+  .cartes-th{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+  .th{background:var(--prune);border:2px solid var(--trait);border-radius:18px;padding:12px 10px;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;font-weight:700;min-height:112px;justify-content:center}
+  .th .e{font-size:2.1rem;line-height:1}
+  .th .t{font-size:.95rem;line-height:1.2}
+  .th .p{font-size:.8rem;font-weight:800;border-radius:999px;padding:1px 10px;color:#1c1326}
+  .th.faible{border-color:var(--non)}
+  .progres{height:10px;background:var(--prune2);border-radius:999px;overflow:hidden;border:2px solid var(--trait)}
+  .progres i{display:block;height:100%;background:var(--ambre);transition:width .3s}
+  .revoir{background:var(--prune);border:2px dashed var(--ambre);border-radius:16px;padding:10px 14px;text-align:left}
+  .revoir b{color:var(--ambre)}
+  .revoir ul{margin:6px 0 0;padding-left:1.2em}
+  .rangee{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+  .note{font-size:3rem;font-weight:800;color:var(--ambre);line-height:1}
+  .etat{font-size:.95rem;text-align:center}
+  .etat.bon{color:var(--ok)}.etat.mal{color:var(--non)}
+  .faibles li{display:block}
+  table.hist{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+  table.hist td,table.hist th{padding:6px 8px;text-align:left;border-top:1px solid var(--trait)}
+  table.hist th{color:var(--sourdine);font-size:.85rem;border-top:0}
+  select.petit-sel{background:var(--prune);border:2px solid var(--trait);border-radius:12px;padding:10px;font-size:1rem}
+</style>
+</head>
+<body>
+<main id="app" class="centre" aria-live="polite"></main>
+<script src="commun.js"></script>
+<script>
+const K_MOI = 'pc-solo-moi', K_HIST = 'pc-solo-hist';
+const app = $('#app');
+let INFO = [], MOI = null, HIST = [], N = 10, QS = [], I = 0, RES = [], FAIT = false;
+
+/* ---------- stockage dans l'appareil de l'élève ---------- */
+const lis = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v == null ? d : v; } catch (e) { return d; } };
+const ecris = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } };
+
+/* ---------- correction (même règles que le mode classe) ---------- */
+const net = s => String(s == null ? '' : s).toLowerCase().replace(/[’‘`´]/g, "'").replace(/[-‐‑–—]/g, ' ').replace(/[^\p{L}\p{N}' ]/gu, ' ').replace(/\s+/g, ' ').trim();
+const RE_ART = /^(?:(?:de la|du|des|de|un|une|le|la|les)\s+|(?:de l'|d'|l'))+/;
+const sansArt = s => { const t = net(s); const u = t.replace(RE_ART, '').trim(); return u || t; };
+const sansAcc = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/œ/g, 'oe').replace(/æ/g, 'ae');
+function dist(a, b) {
+  if (Math.abs(a.length - b.length) > 1) return 2;
+  const m = a.length, n = b.length, d = [];
+  for (let i = 0; i <= m; i++) d[i] = [i];
+  for (let j = 1; j <= n; j++) d[0][j] = j;
+  for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[m][n];
+}
+function verifie(texte, acceptes) {
+  const t = sansArt(texte); if (!t) return { ok: false, presque: false };
+  const att = acceptes.map(sansArt);
+  if (att.includes(t)) return { ok: true, presque: false };
+  const ta = sansAcc(t);
+  for (const a of att) { const aa = sansAcc(a); if (ta === aa) return { ok: true, presque: true }; if (aa.length >= 5 && dist(ta, aa) <= 1) return { ok: true, presque: true }; }
+  return { ok: false, presque: false };
+}
+function evalue(q, rep) {
+  if (q.type === 'ecrire') { const r = verifie(rep.texte, q.acceptes || []); return { ok: r.ok, presque: r.presque, brut: rep.texte }; }
+  if (q.type === 'ordre') { const brut = rep.ordre.map(i => q.tuiles[i]).join(' '); return { ok: brut === q.ordreBon.join(' '), presque: false, brut }; }
+  const o = q.options[rep.i]; return { ok: rep.i === q.bonne, presque: false, brut: o.t || o.e };
+}
+const bonneEtiquette = q => q.type === 'ecrire' || q.type === 'ordre' ? q.affiche : (q.options[q.bonne].t || q.options[q.bonne].e);
+const motDe = q => ((q.cle || '')[0] === 'w' ? (q.type === 'motimg' ? q.texte : (q.affiche || q.bonneTxt)) : (q.texte || q.parle || q.affiche || '')).slice(0, 60);
+
+/* ---------- aides d'affichage ---------- */
+const marque = () => '<div class="marque"><span style="font-size:1.8rem">🌊</span><div>Port-Clair<br><small>Je m\'entraîne</small></div></div>';
+const infoTh = id => INFO.find(t => t.id === id) || { id, titre: id, emoji: '', revoir: [] };
+const couleur = v => 'hsl(' + Math.round(v * 1.25) + ',68%,' + (62 - Math.abs(v - 50) / 10) + '%)';
+const pctTh = id => { let ok = 0, n = 0; HIST.slice(-12).forEach(h => { const p = h.parTheme && h.parTheme[id]; if (p) { ok += p.ok; n += p.n; } }); return n ? { v: Math.round(100 * ok / n), n } : null; };
+function blocRevoir(refs, titre) {
+  if (!refs || !refs.length) return '';
+  return '<div class="revoir"><b>📖 ' + esc(titre || 'Pour réviser') + '</b><ul>' +
+    refs.map(r => '<li>' + esc(r.d) + (r.t ? ' — ' + esc(r.t) : '') + (r.p ? ', <b>' + esc(r.p) + '</b>' : '') + '</li>').join('') + '</ul></div>';
+}
+
+/* ---------- envoi à la prof ---------- */
+async function envoie(recs) {
+  if (!MOI || !MOI.groupe || !recs.length) return { ok: false, vide: true };
+  const r = await api('/api/solo/envoi', { groupe: MOI.groupe, recs: recs.map(x => Object.assign({}, x, { nom: MOI.nom })) });
+  return r;
+}
+
+/* ---------- identité ---------- */
+function vueIdentite(msg) {
+  app.innerHTML = marque() +
+    '<div class="carte" style="display:flex;flex-direction:column;gap:14px"><h1 style="font-size:1.5rem">Je m\'entraîne en français</h1>' +
+    '<p class="doux">Choisis un thème, réponds aux questions et vois ce que tu dois réviser. Ta professeure peut voir tes résultats.</p>' +
+    '<div class="champ"><label for="nom">Ton prénom</label><input id="nom" maxlength="18" autocomplete="off" autocapitalize="words" spellcheck="false" value="' + esc(MOI ? MOI.nom : '') + '"></div>' +
+    '<div class="champ"><label for="grp">Code de ta classe (donné par ta professeure)</label><input id="grp" maxlength="30" autocomplete="off" autocapitalize="none" spellcheck="false" value="' + esc(MOI ? MOI.groupe : '') + '"></div>' +
+    '<p class="erreur" id="err">' + esc(msg || '') + '</p><button class="btn gros" id="go">C\'est parti</button>' +
+    '<p class="doux petit">Seulement ton prénom et le code de classe. Pas de compte, pas de publicité. Tes résultats restent aussi sur cet appareil.</p></div>';
+  const go = () => {
+    const nom = $('#nom').value.replace(/[<>&"'`\\]/g, '').replace(/\s+/g, ' ').trim(), groupe = $('#grp').value.trim();
+    if (!nom) { $('#err').textContent = 'Écris ton prénom.'; return; }
+    if (net(groupe).replace(/ /g, '').length < 2) { $('#err').textContent = 'Écris le code de ta classe.'; return; }
+    MOI = { nom, groupe }; ecris(K_MOI, MOI); vueMenu();
+  };
+  $('#go').onclick = go; $('#grp').onkeydown = $('#nom').onkeydown = e => { if (e.key === 'Enter') go(); };
+}
+
+/* ---------- menu ---------- */
+function vueMenu() {
+  const faibles = INFO.filter(t => { const p = pctTh(t.id); return p && p.n >= 3 && p.v < 70; }).sort((a, b) => pctTh(a.id).v - pctTh(b.id).v);
+  app.innerHTML = marque() +
+    '<div class="rangee"><div><b style="font-size:1.3rem">Salut ' + esc(MOI.nom) + ' !</b><br><span class="doux petit">Classe : ' + esc(MOI.groupe) + '</span></div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sec" id="carnet">📈 Mon carnet</button><button class="btn sec" id="chg">Changer</button></div></div>' +
+    '<div class="champ"><label for="nq">Nombre de questions</label><select id="nq" class="petit-sel">' + [10, 15, 20].map(n => '<option' + (n === N ? ' selected' : '') + '>' + n + '</option>').join('') + '</select></div>' +
+    '<div style="display:grid;gap:10px"><button class="btn gros" id="mel">🎲 Mélange de tous les thèmes</button>' +
+    (faibles.length ? '<button class="btn gros sec" id="fai">🎯 Mes points faibles (' + faibles.slice(0, 3).map(t => esc(t.emoji)).join(' ') + ')</button>' : '') + '</div>' +
+    '<h2 style="font-size:1.2rem">Ou choisis un thème</h2><div class="cartes-th" id="ths"></div><p id="etat" class="etat"></p>';
+  const g = $('#ths');
+  INFO.forEach(t => {
+    const p = pctTh(t.id);
+    const b = el('button', 'th' + (p && p.n >= 3 && p.v < 70 ? ' faible' : ''),
+      '<span class="e">' + esc(t.emoji) + '</span><span class="t">' + esc(t.titre) + '</span>' + (p ? '<span class="p" style="background:' + couleur(p.v) + '">' + p.v + ' %</span>' : '<span class="doux petit">pas encore joué</span>'));
+    b.onclick = () => demarre([t.id]); g.append(b);
+  });
+  $('#nq').onchange = e => { N = +e.target.value; };
+  $('#mel').onclick = () => demarre([]);
+  if ($('#fai')) $('#fai').onclick = () => demarre(faibles.slice(0, 3).map(t => t.id));
+  $('#carnet').onclick = vueCarnet;
+  $('#chg').onclick = () => vueIdentite();
+  // renvoi discret des derniers résultats (le serveur ignore ceux qu'il a déjà)
+  if (HIST.length) envoie(HIST.slice(-12)).then(r => { const e = $('#etat'); if (e && r.ok) { e.className = 'etat bon'; e.textContent = '✅ Tes résultats sont chez ta professeure.'; } else if (e && !r.vide) { e.className = 'etat mal'; e.textContent = '⚠️ Pas de connexion : tes résultats seront renvoyés plus tard.'; } });
+}
+
+/* ---------- questions ---------- */
+async function demarre(themes) {
+  app.innerHTML = marque() + '<div class="carte attente"><div class="coche">⏳</div><p class="doux">Je prépare tes questions…</p></div>';
+  const r = await api('/api/solo/questions', { themes, n: N });
+  if (!r.ok || !r.questions || !r.questions.length) { app.innerHTML = marque() + '<div class="carte"><p class="erreur">Impossible de charger les questions. Vérifie ta connexion.</p><button class="btn gros" id="re">Réessayer</button></div>'; $('#re').onclick = () => vueMenu(); return; }
+  QS = r.questions; I = 0; RES = []; vueQuestion();
+}
+function vueQuestion() {
+  const q = QS[I]; FAIT = false;
+  app.innerHTML = '<div class="theme"><span>' + esc(q.themeEmoji) + ' ' + esc(q.theme) + '</span><span>Question ' + (I + 1) + ' / ' + QS.length + '</span></div>' +
+    '<div class="progres"><i style="width:' + Math.round(100 * I / QS.length) + '%"></i></div><div id="zone" style="display:flex;flex-direction:column;gap:14px"></div>';
+  const z = $('#zone');
+  z.append(el('p', 'consigne', esc(q.consigne)));
+  if (q.type === 'imgmot') z.append(el('div', 'grandemoji', esc(q.emoji)));
+  if (q.type === 'motimg') z.append(el('div', 'enonce', esc(q.texte)));
+  if (q.type === 'phrase' || q.type === 'vf' || q.type === 'situation') z.append(el('div', 'enonce', esc(q.texte).replace(/___/g, '<span style="color:var(--ambre)">_____</span>')));
+  if (q.type === 'ecoute') {
+    const b = el('button', 'haut-parleur', '🔊'); b.setAttribute('aria-label', 'Écouter'); b.onclick = () => parler(q.parle); z.append(b);
+    z.append(el('p', 'expl', 'speechSynthesis' in window ? 'Touche le haut-parleur pour écouter. Tu peux écouter plusieurs fois.' : 'Pas de son sur cet appareil : lis cette phrase : « ' + esc(q.parle) + ' »'));
+    if ('speechSynthesis' in window) setTimeout(() => parler(q.parle), 300);
+  }
+  if (q.options) {
+    const emoji = q.type === 'motimg', vf = q.type === 'vf';
+    const o = el('div', 'options' + (emoji || vf ? ' deux' : ''));
+    q.options.forEach((opt, i) => {
+      const b = el('button', 'opt ' + (vf ? 'vf ' + (i === 0 ? 'vrai' : 'faux') : 'c' + (i % 4)) + (emoji ? ' emoji' : ''),
+        (vf ? '' : '<span class="lettre">' + LETTRES[i] + '</span>') + (emoji ? esc(opt.e) : (vf ? (i === 0 ? '✔ Vrai' : '✘ Faux') : '<span>' + esc(opt.t) + '</span>')));
+      if (emoji) b.setAttribute('aria-label', 'Image ' + LETTRES[i]);
+      b.onclick = () => { if (FAIT) return; FAIT = true; b.classList.add('choisi'); retour(q, { i }); };
+      o.append(b);
+    });
+    z.append(o);
+  }
+  if (q.type === 'ordre') {
+    const rep = el('div', 'tuiles reponse'), res = el('div', 'tuiles'), ok = el('button', 'btn gros', 'Valider'); ok.disabled = true;
+    const maj = () => { ok.disabled = res.children.length > 0; };
+    q.tuiles.forEach((mot, i) => { const t = el('button', 'tuile', esc(mot)); t.dataset.i = i; t.onclick = () => { (t.parentNode === res ? rep : res).append(t); maj(); }; res.append(t); });
+    ok.onclick = () => { if (FAIT) return; FAIT = true; retour(q, { ordre: [...rep.children].map(x => +x.dataset.i) }); };
+    z.append(el('p', 'expl', 'Touche les mots dans le bon ordre.'), rep, res, ok);
+  }
+  if (q.type === 'ecrire') {
+    if (q.emoji) z.append(el('div', 'grandemoji', esc(q.emoji)));
+    if (q.texte) z.append(el('div', 'enonce', esc(q.texte).replace(/___/g, '<span style="color:var(--ambre)">_____</span>')));
+    z.append(el('div', 'motif', esc(q.motif)));
+    const sa = el('div', 'saisie'), inp = document.createElement('input');
+    inp.type = 'text'; inp.setAttribute('autocomplete', 'off'); inp.setAttribute('autocapitalize', 'none'); inp.setAttribute('autocorrect', 'off');
+    inp.spellcheck = false; inp.lang = 'fr'; inp.enterKeyHint = 'send'; inp.setAttribute('aria-label', 'Ta réponse'); inp.maxLength = 40;
+    const ok = el('button', 'btn', 'OK');
+    const valide = () => { const t = inp.value.trim(); if (t && !FAIT) { FAIT = true; retour(q, { texte: t }); } };
+    ok.onclick = valide; inp.onkeydown = ev => { if (ev.key === 'Enter') valide(); };
+    sa.append(inp, ok);
+    const ac = el('div', 'accents');
+    'é è ê à â ç î ï ô ù û œ'.split(' ').forEach(c => { const b = el('button', null, c); b.type = 'button'; b.onmousedown = ev => ev.preventDefault(); b.onclick = () => { const d = inp.selectionStart, f = inp.selectionEnd; inp.setRangeText(c, d, f, 'end'); inp.focus(); }; ac.append(b); });
+    z.append(sa, ac); setTimeout(() => inp.focus(), 150);
+  }
+  const stop = el('button', 'btn sec', 'Arrêter'); stop.style.alignSelf = 'center';
+  stop.onclick = () => { if (RES.length) fin(); else vueMenu(); };
+  app.append(stop);
+  window.scrollTo(0, 0);
+}
+function retour(q, rep) {
+  const r = evalue(q, rep);
+  RES.push({ q, ok: r.ok, presque: r.presque, brut: r.brut });
+  let cls = 'ko', ico = '✘', titre = 'Pas cette fois';
+  if (r.ok && r.presque) { cls = 'pr'; ico = '≈'; titre = 'Presque ! Regarde l\'orthographe'; } else if (r.ok) { cls = 'ok'; ico = '✔'; titre = 'Bravo !'; }
+  let bonne = esc(bonneEtiquette(q));
+  if (q.type === 'motimg') bonne = '<span style="font-size:3rem">' + esc(bonneEtiquette(q)) + '</span>';
+  const sa = !r.ok ? '<p class="expl">Ta réponse : ' + esc(r.brut) + '</p>' : '';
+  const dernier = I + 1 >= QS.length;
+  app.innerHTML = '<div class="theme"><span>' + esc(q.themeEmoji) + ' ' + esc(q.theme) + '</span><span>Question ' + (I + 1) + ' / ' + QS.length + '</span></div>' +
+    '<div class="progres"><i style="width:' + Math.round(100 * (I + 1) / QS.length) + '%"></i></div>' +
+    '<div class="verdict ' + cls + '"><div class="gros">' + ico + '</div><h2>' + titre + '</h2></div>' +
+    '<p class="sur" style="text-align:center">Bonne réponse</p><div class="bonne">' + bonne + '</div>' + sa +
+    (q.expl ? '<p class="expl">' + esc(q.expl) + '</p>' : '') +
+    (!r.ok || r.presque ? blocRevoir(q.revoir, 'À revoir') : '') +
+    '<button class="btn gros" id="suite">' + (dernier ? 'Voir mon résultat' : 'Question suivante →') + '</button>';
+  $('#suite').onclick = () => { if (dernier) fin(); else { I++; vueQuestion(); } };
+  window.scrollTo(0, 0); setTimeout(() => { const s = $('#suite'); if (s) s.focus(); }, 50);
+}
+
+/* ---------- fin ---------- */
+function construitRec() {
+  const parTheme = {}, erreurs = []; let score = 0, bonnes = 0;
+  RES.forEach(x => {
+    const id = x.q.themeId, p = parTheme[id] = parTheme[id] || { ok: 0, n: 0 };
+    p.n++; if (x.ok) { p.ok++; bonnes++; score += x.presque ? 6 : 10; }
+    if (!x.ok || x.presque) erreurs.push({ theme: id, mot: motDe(x.q), bonne: String(bonneEtiquette(x.q)).slice(0, 80), rep: String(x.brut == null ? '' : x.brut).slice(0, 80), rev: (x.q.revoir || []).slice(0, 2) });
+  });
+  return { id: 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), t: Date.now(), groupe: MOI.groupe, themes: Object.keys(parTheme), parTheme, total: RES.length, bonnes, score, erreurs };
+}
+async function fin() {
+  const rec = construitRec();
+  HIST.push(rec); if (HIST.length > 300) HIST = HIST.slice(-300); ecris(K_HIST, HIST);
+  const note = Math.round(20 * rec.bonnes / rec.total), pc = Math.round(100 * rec.bonnes / rec.total);
+  const msg = pc >= 85 ? 'Excellent travail !' : pc >= 65 ? 'Très bien, continue !' : pc >= 40 ? 'C\'est un bon début. Révise les points ci-dessous.' : 'Courage ! Regarde les pages à revoir et recommence.';
+  let barres = '<div class="barres">';
+  Object.keys(rec.parTheme).forEach(id => { const t = infoTh(id), p = rec.parTheme[id], v = Math.round(100 * p.ok / p.n); barres += '<div class="barre"><span class="nom" style="width:11em">' + esc(t.emoji) + ' ' + esc(t.titre) + '</span><span class="fond"><i style="width:' + v + '%;background:' + couleur(v) + '"></i></span><span class="val" style="width:5.5em">' + p.ok + '/' + p.n + '</span></div>'; });
+  barres += '</div>';
+  app.innerHTML = marque() + '<div class="verdict ok"><div class="gros">🏆</div><h2>Résultat</h2><div class="note">' + note + ' / 20</div><p>' + rec.bonnes + ' bonne' + (rec.bonnes > 1 ? 's' : '') + ' réponse' + (rec.bonnes > 1 ? 's' : '') + ' sur ' + rec.total + ' · ' + rec.score + ' points</p><p class="doux">' + msg + '</p></div>' +
+    '<div class="carte">' + barres + '</div>' + ameliorer(rec.erreurs) +
+    '<p id="etat" class="etat doux">Envoi à ta professeure…</p>' +
+    '<div style="display:grid;gap:10px"><button class="btn gros" id="encore">Rejouer</button><button class="btn gros sec" id="menu">Choisir un autre thème</button></div>';
+  $('#encore').onclick = () => demarre(rec.themes.length === 1 ? rec.themes : (rec.themes.length >= INFO.length - 1 ? [] : rec.themes));
+  $('#menu').onclick = vueMenu;
+  const r = await envoie([rec]); const e = $('#etat');
+  if (e) { if (r.ok) { e.className = 'etat bon'; e.textContent = '✅ Résultat envoyé à ta professeure.'; } else { e.className = 'etat mal'; e.textContent = '⚠️ Pas de connexion. Ton résultat est gardé : il sera envoyé la prochaine fois.'; } }
+}
+function ameliorer(erreurs) {
+  if (!erreurs.length) return '<div class="carte"><b>🎉 Aucun point à améliorer cette fois !</b></div>';
+  const par = {}; erreurs.forEach(e => (par[e.theme] = par[e.theme] || []).push(e));
+  let h = '<div class="carte" style="display:flex;flex-direction:column;gap:12px"><h2 style="font-size:1.25rem">🎯 À améliorer</h2>';
+  Object.keys(par).forEach(id => {
+    const t = infoTh(id), liste = par[id];
+    h += '<div><b>' + esc(t.emoji) + ' ' + esc(t.titre) + '</b><ul class="faibles" style="margin:6px 0 8px;padding-left:1.2em">' +
+      liste.slice(0, 6).map(e => '<li>' + esc(e.mot) + ' <span class="doux">→ ' + esc(e.bonne) + '</span></li>').join('') + '</ul>' +
+      blocRevoir(t.horsDocs ? [] : (liste[0].rev && liste[0].rev.length && liste.length === 1 ? liste[0].rev : t.revoir), t.horsDocs ? '' : 'Pour réviser') +
+      (t.horsDocs ? '<p class="doux petit">Ce thème n\'a pas de page dans le cahier : demande à ta professeure.</p>' : '') + '</div>';
+  });
+  return h + '</div>';
+}
+
+/* ---------- mon carnet ---------- */
+function vueCarnet() {
+  const parTh = {};
+  HIST.forEach(h => Object.keys(h.parTheme || {}).forEach(id => { const x = parTh[id] = parTh[id] || { ok: 0, n: 0, tot: [] }; x.ok += h.parTheme[id].ok; x.n += h.parTheme[id].n; }));
+  const ids = Object.keys(parTh).sort((a, b) => (parTh[a].ok / parTh[a].n) - (parTh[b].ok / parTh[b].n));
+  let barres = ids.length ? '<div class="barres">' : '<p class="doux">Joue une première fois pour voir ton carnet.</p>';
+  ids.forEach(id => { const t = infoTh(id), p = parTh[id], v = Math.round(100 * p.ok / p.n); barres += '<div class="barre"><span class="nom" style="width:11em">' + esc(t.emoji) + ' ' + esc(t.titre) + '</span><span class="fond"><i style="width:' + v + '%;background:' + couleur(v) + '"></i></span><span class="val" style="width:5.5em">' + v + ' %</span></div>'; });
+  if (ids.length) barres += '</div>';
+  // mots les plus ratés
+  const ratés = {}; HIST.forEach(h => (h.erreurs || []).forEach(e => { const k = e.theme + '|' + e.mot; const x = ratés[k] = ratés[k] || { e, n: 0 }; x.n++; }));
+  const top = Object.values(ratés).sort((a, b) => b.n - a.n).slice(0, 8);
+  const mots = top.length ? '<div class="carte"><h2 style="font-size:1.2rem">🔁 Les mots à revoir</h2><ul class="faibles" style="padding-left:1.2em;margin:8px 0 0">' + top.map(x => '<li>' + esc(x.e.mot) + ' <span class="doux">→ ' + esc(x.e.bonne) + (x.e.rev && x.e.rev[0] ? ' · ' + esc(x.e.rev[0].d) + ' ' + esc(x.e.rev[0].p) : '') + '</span></li>').join('') + '</ul></div>' : '';
+  app.innerHTML = marque() + '<div class="rangee"><h1 style="font-size:1.5rem">Mon carnet</h1><button class="btn sec" id="ret">← Retour</button></div>' +
+    '<div class="carte"><h2 style="font-size:1.2rem;margin-bottom:8px">Mes résultats par thème</h2>' + barres + '</div>' + mots +
+    '<div class="carte"><h2 style="font-size:1.2rem;margin-bottom:8px">Mes dernières parties</h2>' + (HIST.length ? '<table class="hist"><tr><th>Date</th><th>Thèmes</th><th>Note</th></tr>' + HIST.slice(-12).reverse().map(h => '<tr><td>' + new Date(h.t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) + '</td><td>' + h.themes.map(id => esc(infoTh(id).emoji)).join(' ') + '</td><td><b>' + Math.round(20 * h.bonnes / h.total) + ' / 20</b></td></tr>').join('') + '</table>' : '<p class="doux">Aucune partie pour l\'instant.</p>') + '</div>';
+  $('#ret').onclick = vueMenu;
+}
+
+/* ---------- démarrage ---------- */
+(async function () {
+  MOI = lis(K_MOI, null); HIST = lis(K_HIST, []);
+  try { const r = await fetch('/api/info'); INFO = (await r.json()).themes || []; } catch (e) { INFO = []; }
+  if (!INFO.length) { app.innerHTML = marque() + '<div class="carte"><p class="erreur">Le serveur ne répond pas. Si le site vient de se réveiller, attends une minute puis recharge la page.</p></div>'; return; }
+  const url = new URL(location.href), c = url.searchParams.get('c');
+  if (c && (!MOI || MOI.groupe !== c)) MOI = { nom: MOI ? MOI.nom : '', groupe: c };
+  if (MOI && MOI.nom && MOI.groupe) vueMenu(); else vueIdentite();
+})();
+</script>
+</body>
+</html>

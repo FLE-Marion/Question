@@ -355,6 +355,7 @@ materiel: { titre: "Le matériel de la classe", emoji: "🎒", verbes: false, au
 /* Thèmes ajoutés + groupes de mots/images à ne pas proposer ensemble (ambigus) + emojis récents
    (risque de carré vide sur de vieilles tablettes : on ne les utilise pas comme images). */
 const PLUS = require("./themes2.js");
+const RES = require("./ressources.js");
 Object.assign(THEMES, PLUS.themes);
 Object.keys(PLUS.conf).forEach(id => { if (THEMES[id]) THEMES[id].conf = (THEMES[id].conf || []).concat(PLUS.conf[id]); });
 const RISQUE = new Set(PLUS.risque);
@@ -432,6 +433,29 @@ const TEMPS = { imgmot: 15, motimg: 15, ecrire: 40, phrase: 25, ordre: 0, ecoute
 const TROMPEUR = new Set(PLUS.trompeur);
 const imageOk = e => !!e && !RISQUE.has(e) && !TROMPEUR.has(e);
 
+/* ---------- documents de la prof : le mot figure-t-il dans le vocabulaire du thème ? et où le revoir ? ---------- */
+function lexiqueOk(id, mot) {
+  const m = RES.MOTS[id] && RES.MOTS[id][sansArt(mot)];
+  return !!(m && m.ok);
+}
+function pagesTxt(r) { return r.doc === "mob" ? "" : (r.lo === r.hi ? "p. " + r.lo : "p. " + r.lo + "–" + r.hi); }
+/* références du thème : [{ d: document, t: titre de la partie, p: pages }] */
+function refsTheme(id) {
+  const th = RES.THEMES[id];
+  return th ? th.refs.map(r => ({ d: RES.DOCS[r.doc].court, t: r.titre, p: pagesTxt(r) })) : [];
+}
+/* références pour une question : page précise du mot si on la connaît, sinon pages du thème */
+function revoirPour(id, cle) {
+  const th = RES.THEMES[id];
+  if (!th || !th.refs.length) return [];
+  const w = cle && cle[0] === "w" ? cle.slice(2) : null;
+  const m = w && RES.MOTS[id] && RES.MOTS[id][w];
+  if (m && m.rev && m.rev.length) {
+    return m.rev.map(([doc, p]) => { const r = th.refs.find(x => x.doc === doc); return { d: RES.DOCS[doc].court, t: r ? r.titre : "", p: doc === "mob" ? "" : "p. " + p }; });
+  }
+  return refsTheme(id);
+}
+
 /* Toutes les questions possibles d'un thème (la partie en tire un sous-ensemble sans répétition). */
 function construireTheme(id) {
   const T = THEMES[id], V = T.V, out = [], conf = T.conf || [];
@@ -446,7 +470,9 @@ function construireTheme(id) {
     const q = qcm(base("motimg", { texte: w[0], consigne: "Touche la bonne image." }),
       { e: w[1] }, autresV(Vimg, w, 3, conf).map(x => ({ e: x[1] })));
     q.bonneTxt = w[1]; out.push(cle(q, mot(w)));
-    out.push(cle(base("ecrire", { emoji: w[1], consigne: T.verbes ? "Écris le verbe." : "Écris le mot en français.", acceptes: variantes(w), affiche: w[0], motif: motif(w[0]) }), mot(w)));
+    /* « Écris le mot » avec une image : seulement pour les mots présents dans les documents de la prof */
+    if (lexiqueOk(id, w[0]))
+      out.push(cle(base("ecrire", { emoji: w[1], consigne: T.verbes ? "Écris le verbe." : "Écris le mot en français.", acceptes: variantes(w), affiche: w[0], motif: motif(w[0]) }), mot(w)));
   });
   out.forEach(q => { if (q.type === "imgmot") q.bonneTxt = q.options[q.bonne].t; });
 
@@ -463,7 +489,7 @@ function construireTheme(id) {
 
   T.E.forEach(e => {
     const acc = e[1].split("|");
-    const q = base("ecrire", { texte: e[0], emoji: imageOk(e[2] || "") ? (e[2] || "") : "", consigne: "Écris le mot qui manque.", acceptes: acc, affiche: acc[0], motif: motif(acc[0]), temps: 45 });
+    const q = base("ecrire", { texte: e[0], emoji: imageOk(e[2] || "") && lexiqueOk(id, acc[0]) ? (e[2] || "") : "", consigne: "Écris le mot qui manque.", acceptes: acc, affiche: acc[0], motif: motif(acc[0]), temps: 45 });
     out.push(cle(q, "w:" + sansArt(acc[0])));
   });
 
@@ -488,7 +514,7 @@ function construireTheme(id) {
     q.bonneTxt = s[1][0]; out.push(cle(q, "s:" + net(s[1][0])));
   });
 
-  out.forEach((q, i) => { q.id = id + "-" + i; q.themeTitre = T.titre; q.themeEmoji = T.emoji; });
+  out.forEach((q, i) => { q.id = id + "-" + i; q.themeTitre = T.titre; q.themeEmoji = T.emoji; q.revoir = revoirPour(id, q.cle); });
   return out;
 }
 
@@ -555,8 +581,21 @@ function publique(q) {
   return {
     id: q.id, type: q.type, consigne: q.consigne, texte: q.texte || "", emoji: q.emoji || "", parle: q.parle || "",
     options: q.options ? q.options.map(o => ({ t: o.t || "", e: o.e || "" })) : null,
-    tuiles: q.tuiles || null, motif: q.motif || "", theme: q.themeTitre, themeEmoji: q.themeEmoji, temps: q.temps
+    tuiles: q.tuiles || null, motif: q.motif || "", theme: q.themeTitre, themeEmoji: q.themeEmoji, temps: q.temps,
+    themeId: q.theme, revoir: q.revoir || []
   };
 }
+/* version pour le travail en solo : avec la correction (l'élève s'entraîne seul, la page corrige) */
+function pourSolo(q) {
+  const p = publique(q);
+  p.bonne = q.bonne === undefined ? null : q.bonne;
+  p.acceptes = q.acceptes || null;
+  p.ordreBon = q.ordreBon || null;
+  p.affiche = q.affiche || "";
+  p.expl = q.expl || "";
+  p.bonneTxt = q.bonneTxt || "";
+  p.cle = q.cle || "";
+  return p;
+}
 
-module.exports = { THEMES, ORDRE, LIBELLES, construire, construireTheme, tirer, capacite, publique, verifie, sansArt, melange };
+module.exports = { THEMES, ORDRE, LIBELLES, construire, construireTheme, tirer, capacite, publique, pourSolo, verifie, sansArt, melange, lexiqueOk, refsTheme, revoirPour, RES };
